@@ -34,7 +34,21 @@
 
 </head>
   <body>
-    <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#FDFCF7"><span style="color:rgba(45,40,51,0.25);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.25em;font-family:system-ui,sans-serif">Afterload</span></div></div>
+    <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#FDFCF7;flex-direction:column;gap:12px"><span style="color:rgba(45,40,51,0.25);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.25em;font-family:system-ui,sans-serif">Afterload</span><span id="perf" style="color:rgba(45,40,51,0.3);font-size:11px;font-family:monospace"></span></div></div>
+  <script>
+    // Temporary performance diagnostic — remove after debugging
+    var t0 = Date.now();
+    document.getElementById('perf').textContent = 'html loaded';
+    new MutationObserver(function(m, o) {
+      if (!document.getElementById('perf')) {
+        var d = document.createElement('div');
+        d.style.cssText = 'position:fixed;bottom:16px;left:16px;background:#1a1a2e;color:#0f0;padding:10px 16px;border-radius:8px;font:bold 13px monospace;z-index:99999';
+        d.textContent = 'React rendered in ' + ((Date.now() - t0) / 1000).toFixed(1) + 's';
+        document.body.appendChild(d);
+        o.disconnect();
+      }
+    }).observe(document.getElementById('root'), { childList: true, subtree: true });
+  </script>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
