@@ -23,9 +23,13 @@ export default defineConfig(({ mode }) => {
       build: {
         rollupOptions: {
           output: {
-            manualChunks: {
-              'vendor-react': ['react', 'react-dom'],
-              'vendor-motion': ['framer-motion'],
+            manualChunks(id) {
+              // Group all React packages into one cached vendor chunk
+              if (id.includes('node_modules/react-dom/') ||
+                  id.includes('node_modules/react/') ||
+                  id.includes('node_modules/scheduler')) {
+                return 'vendor-react';
+              }
             }
           }
         }
