@@ -73,11 +73,15 @@ export default function App() {
     }
   }, [userEmail]);
 
-  // 2. Supabase Auth Listener (lazy-loads supabase module)
+  // 2. Supabase Auth Listener (lazy-loads supabase module, deferred to not compete with first paint)
   useEffect(() => {
     let subscription: { unsubscribe: () => void } | undefined;
+    let cancelled = false;
 
-    import('./utils/supabase').then(({ supabase }) => {
+    // Defer the Supabase SDK download until the browser is idle,
+    // so it doesn't compete with rendering the Hero.
+    const start = () => import('./utils/supabase').then(({ supabase }) => {
+      if (cancelled) return;
       supabase.auth.getSession().then(({ data: { session } }: any) => {
         if (session?.user?.email) {
           setUserEmail(session.user.email);
@@ -115,7 +119,13 @@ export default function App() {
       subscription = data.subscription;
     });
 
-    return () => subscription?.unsubscribe();
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(start);
+    } else {
+      setTimeout(start, 150);
+    }
+
+    return () => { cancelled = true; subscription?.unsubscribe(); };
   }, []);
 
   // 3. Handle Stripe Redirects, "Resume" Links, and Admin Access
