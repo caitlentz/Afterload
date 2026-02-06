@@ -1,14 +1,15 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { motion, useScroll, useTransform, useMotionTemplate } from 'framer-motion';
 import { ArrowRight, ArrowDown } from 'lucide-react';
-import SelfDiagnosis from './SelfDiagnosis';
-import Delivery from './Delivery';
-import Outcome from './Outcome';
-import AntiPitch from './AntiPitch';
-import FAQ from './FAQ';
 import Intake from './Intake';
-import Footer from './Footer';
 import { IntakeResponse } from '../utils/diagnosticEngine';
+
+// Lazy load below-fold sections — not visible on initial viewport
+const SelfDiagnosis = lazy(() => import('./SelfDiagnosis'));
+const Delivery = lazy(() => import('./Delivery'));
+const AntiPitch = lazy(() => import('./AntiPitch'));
+const FAQ = lazy(() => import('./FAQ'));
+const Footer = lazy(() => import('./Footer'));
 
 interface HeroProps {
   onDiagnosticComplete: (answers: IntakeResponse) => void;
@@ -184,17 +185,18 @@ export default function Hero({ onDiagnosticComplete, onLoginClick }: HeroProps) 
         </div>
       </section>
 
-      <SelfDiagnosis onStartIntake={handleScrollToIntake} />
-
-      <AntiPitch />
-      
-      <Delivery />
-
-      <FAQ />
+      <Suspense fallback={null}>
+        <SelfDiagnosis onStartIntake={handleScrollToIntake} />
+        <AntiPitch />
+        <Delivery />
+        <FAQ />
+      </Suspense>
 
       <Intake onComplete={onDiagnosticComplete} />
 
-      <Footer onLoginClick={onLoginClick} />
+      <Suspense fallback={null}>
+        <Footer onLoginClick={onLoginClick} />
+      </Suspense>
     </motion.div>
   );
 }

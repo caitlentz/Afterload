@@ -239,8 +239,9 @@ export default function App() {
 
   const successEmail = intakeData?.email || userEmail;
 
-  // Don't render until we know auth state (prevents flash)
-  if (!authReady) {
+  // Only block rendering for views that need auth — let HOME render immediately
+  const needsAuth = currentView === View.DASHBOARD || currentView === View.ADMIN;
+  if (!authReady && needsAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-brand-bg">
         <div className="animate-pulse text-brand-dark/30 text-sm font-bold uppercase tracking-widest">Loading...</div>
