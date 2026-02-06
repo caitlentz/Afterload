@@ -21,14 +21,20 @@ export default defineConfig(({ mode }) => {
         }
       },
       build: {
+        target: 'es2020',
         rollupOptions: {
           output: {
             manualChunks(id) {
-              // Group all React packages into one cached vendor chunk
               if (id.includes('node_modules/react-dom/') ||
                   id.includes('node_modules/react/') ||
                   id.includes('node_modules/scheduler')) {
                 return 'vendor-react';
+              }
+              if (id.includes('node_modules/@supabase/')) {
+                return 'supabase';
+              }
+              if (id.includes('node_modules/framer-motion/')) {
+                return 'framer-motion';
               }
             }
           }
