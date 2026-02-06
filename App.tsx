@@ -1,6 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import Hero from './components/Hero';
-import Background from './components/Background';
 import { User } from 'lucide-react';
 
 // Type-only imports — erased at compile time, zero bundle cost
@@ -16,6 +15,7 @@ const Login = lazy(() => import('./components/Login'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const AdminView = lazy(() => import('./components/AdminView'));
 const SuccessScreen = lazy(() => import('./components/SuccessScreen'));
+const Background = lazy(() => import('./components/Background'));
 
 enum View {
   HOME = 'HOME',
@@ -271,7 +271,9 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden text-brand-dark font-sans selection:bg-brand-accent selection:text-brand-dark">
-      <Background />
+      <Suspense fallback={<div className="fixed inset-0 bg-brand-bg" />}>
+        <Background />
+      </Suspense>
 
       {/* Header - Centered Pill Style */}
       <header className="fixed top-0 left-0 right-0 z-50 flex justify-center py-8 pointer-events-none">
