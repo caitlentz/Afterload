@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { AnimatePresence, motion, useScroll } from 'framer-motion';
 import Hero from './components/Hero';
-import Intake from './components/Intake';
-import DiagnosticPreview from './components/DiagnosticPreview';
-import PaymentGate from './components/PaymentGate';
 import Background from './components/Background';
-import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import AdminView from './components/AdminView';
 import { IntakeResponse } from './utils/diagnosticEngine';
 import { runPreviewDiagnostic, PreviewResult } from './utils/previewEngine';
 import { supabase } from './utils/supabase';
 import { saveIntakeResponse, saveDiagnosticResult, getPaymentStatus, PaymentStatus } from './utils/database';
 import { determineTrack } from './utils/diagnosticEngine';
 import { CheckCircle, Mail, User } from 'lucide-react';
+
+// Lazy-load views that aren't needed on initial page load
+const Intake = lazy(() => import('./components/Intake'));
+const DiagnosticPreview = lazy(() => import('./components/DiagnosticPreview'));
+const PaymentGate = lazy(() => import('./components/PaymentGate'));
+const Login = lazy(() => import('./components/Login'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const AdminView = lazy(() => import('./components/AdminView'));
 
 enum View {
   HOME = 'HOME',
@@ -314,47 +316,49 @@ export default function App() {
       </header>
 
       <main className="relative z-10 w-full min-h-screen flex flex-col">
-        <AnimatePresence mode="wait">
-          {currentView === View.HOME && (
-            <Hero key="hero" onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
-          )}
+        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-brand-bg"><div className="animate-pulse text-brand-dark/30 text-sm font-bold uppercase tracking-widest">Loading...</div></div>}>
+          <AnimatePresence mode="wait">
+            {currentView === View.HOME && (
+              <Hero key="hero" onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
+            )}
 
-          {currentView === View.DASHBOARD && userEmail && (
-            <Dashboard
-                key="dashboard"
-                userEmail={userEmail}
-                intakeData={intakeData}
-                diagnosticResult={null}
-                paymentStatus={paymentStatus}
-                onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
-                onResumeIntake={() => navigate(View.DEEP_INTAKE)}
-                onStartPayment={() => navigate(View.PAYMENT)}
-                onEditAnswers={handleEditAnswers}
-                onResetDiagnostic={handleResetDiagnostic}
-                onUpdateIntake={handleUpdateIntake}
-                onLogout={handleLogout}
-            />
-          )}
+            {currentView === View.DASHBOARD && userEmail && (
+              <Dashboard
+                  key="dashboard"
+                  userEmail={userEmail}
+                  intakeData={intakeData}
+                  diagnosticResult={null}
+                  paymentStatus={paymentStatus}
+                  onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
+                  onResumeIntake={() => navigate(View.DEEP_INTAKE)}
+                  onStartPayment={() => navigate(View.PAYMENT)}
+                  onEditAnswers={handleEditAnswers}
+                  onResetDiagnostic={handleResetDiagnostic}
+                  onUpdateIntake={handleUpdateIntake}
+                  onLogout={handleLogout}
+              />
+            )}
 
-          {currentView === View.DIAGNOSTIC_PREVIEW && (
-            <DiagnosticPreview key="preview" preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
-          )}
-          {currentView === View.PAYMENT && (
-            <PaymentGate key="payment" onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
-          )}
-          {currentView === View.DEEP_INTAKE && (
-            <Intake key="deep-intake" mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
-          )}
-          {currentView === View.SUCCESS && (
-            <SuccessScreen key="success" email={successEmail || undefined} onRestart={handleRestart} />
-          )}
-          {currentView === View.LOGIN && (
-            <Login key="login" onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
-          )}
-          {currentView === View.ADMIN && (
-            <AdminView key="admin" />
-          )}
-        </AnimatePresence>
+            {currentView === View.DIAGNOSTIC_PREVIEW && (
+              <DiagnosticPreview key="preview" preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
+            )}
+            {currentView === View.PAYMENT && (
+              <PaymentGate key="payment" onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
+            )}
+            {currentView === View.DEEP_INTAKE && (
+              <Intake key="deep-intake" mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
+            )}
+            {currentView === View.SUCCESS && (
+              <SuccessScreen key="success" email={successEmail || undefined} onRestart={handleRestart} />
+            )}
+            {currentView === View.LOGIN && (
+              <Login key="login" onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
+            )}
+            {currentView === View.ADMIN && (
+              <AdminView key="admin" />
+            )}
+          </AnimatePresence>
+        </Suspense>
       </main>
     </div>
   );

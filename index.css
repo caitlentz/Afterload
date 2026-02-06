@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+  --font-serif: 'Newsreader', serif;
+  --font-lora: 'Lora', serif;
+
+  --color-cream-50: #f6f6f4;
+  --color-cream-100: #F7F4F6;
+  --color-cream-200: #f6f6f4;
+  --color-cream-300: #D3C4CF;
+
+  --color-lavender-50: #F7F4F6;
+  --color-lavender-100: #EBE5F0;
+  --color-lavender-200: #D3C4CF;
+  --color-lavender-300: #BCAEC3;
+  --color-lavender-400: #A091B4;
+  --color-lavender-500: #7C5A92;
+  --color-lavender-600: #572371;
+  --color-lavender-700: #421762;
+  --color-lavender-800: #2D0B53;
+  --color-lavender-900: #1E0B38;
+  --color-lavender-950: #0F0320;
+
+  --color-sage-300: #ecefeb;
+  --color-sage-400: #9CAF9C;
+  --color-sage-500: #7A9182;
+  --color-sage-600: #5F7366;
+
+  --color-brand-dark: #2D2833;
+  --color-brand-deep: #3E1C55;
+  --color-brand-rich: #704386;
+  --color-brand-muted: #A29CB3;
+  --color-brand-soft: #e9e1e3;
+  --color-brand-pale: #F0EDEA;
+  --color-brand-mid: #998692;
+  --color-brand-primary: #6B6373;
+  --color-brand-accent: #bbabc6;
+  --color-brand-lilac: #CDC7D4;
+  --color-brand-glow: #E2DEE6;
+  --color-brand-silver: #D8D2DB;
+  --color-brand-light: #F2EBE1;
+  --color-brand-bg: #FDFCF7;
+  --color-brand-newGlow: #D3C4CF;
+  --color-brand-glass: rgba(255, 255, 255, 0.4);
+  --color-brand-glassBorder: rgba(255, 255, 255, 0.6);
+}
+
+body {
+  overscroll-behavior-y: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+@media print {
+  @page { margin: 0.5in; }
+  body { background-color: white; }
+  header, .no-print, button { display: none !important; }
+  .print-only { display: block !important; }
+  main, div {
+    overflow: visible !important;
+    height: auto !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  * { color: black !important; -webkit-print-color-adjust: exact; }
+}

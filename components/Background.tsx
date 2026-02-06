@@ -19,13 +19,13 @@ const Background: React.FC = () => {
       <div className="absolute inset-0 w-full h-full">
         {/* Orb 1 — soft warm wash */}
         <motion.div
-          style={{ x: x1, y: y1, rotate: rotate1 }}
+          style={{ x: x1, y: y1, rotate: rotate1, willChange: 'transform' }}
           className="absolute -top-[20%] -left-[10%] w-[100vw] h-[50vw] rounded-[40%_60%_70%_30%/40%_50%_60%_50%] bg-sage-300/40 blur-[150px]"
         />
       </div>
         {/* Orb 2 — cool accent */}
         <motion.div
-          style={{ x: x2, y: y2, rotate: rotate2 }}
+          style={{ x: x2, y: y2, rotate: rotate2, willChange: 'transform' }}
           className="absolute top-[20%] -right-[20%] w-[80vw] h-[80vw] rounded-[60%_40%_30%_70%/60%_30%_70%_40%] bg-brand-lilac/40 blur-[200px]"
         />
 
