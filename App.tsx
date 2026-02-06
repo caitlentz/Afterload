@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { AnimatePresence, motion, useScroll } from 'framer-motion';
 import Hero from './components/Hero';
-import Intake from './components/Intake';
-import DiagnosticPreview from './components/DiagnosticPreview';
-import PaymentGate from './components/PaymentGate';
 import Background from './components/Background';
-import Login from './components/Login';
-import Dashboard from './components/Dashboard';
-import AdminView from './components/AdminView';
-import { IntakeResponse } from './utils/diagnosticEngine';
-import { runPreviewDiagnostic, PreviewResult } from './utils/previewEngine';
-import { supabase } from './utils/supabase';
-import { saveIntakeResponse, saveDiagnosticResult, getPaymentStatus, PaymentStatus } from './utils/database';
-import { determineTrack } from './utils/diagnosticEngine';
 import { CheckCircle, Mail, User } from 'lucide-react';
+
+// Type-only imports — erased at compile time, zero bundle cost
+import type { IntakeResponse } from './utils/diagnosticEngine';
+import type { PreviewResult } from './utils/previewEngine';
+import type { PaymentStatus } from './utils/database';
+
+// Lazy-load views that aren't needed on initial page load
+const Intake = lazy(() => import('./components/Intake'));
+const DiagnosticPreview = lazy(() => import('./components/DiagnosticPreview'));
+const PaymentGate = lazy(() => import('./components/PaymentGate'));
+const Login = lazy(() => import('./components/Login'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const AdminView = lazy(() => import('./components/AdminView'));
 
 enum View {
   HOME = 'HOME',
@@ -67,51 +69,58 @@ export default function App() {
 
   const { scrollYProgress } = useScroll();
 
-  // Fetch payment status whenever we have an email
+  // Fetch payment status whenever we have an email (lazy-loads database module)
   useEffect(() => {
     if (userEmail) {
-      getPaymentStatus(userEmail).then(setPaymentStatus);
+      import('./utils/database').then(({ getPaymentStatus }) =>
+        getPaymentStatus(userEmail).then(setPaymentStatus)
+      );
     }
   }, [userEmail]);
 
-  // 2. Supabase Auth Listener
+  // 2. Supabase Auth Listener (lazy-loads supabase module)
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) {
-        setUserEmail(session.user.email);
-        if (window.location.hash.includes('access_token') || window.location.hash.includes('type=magiclink')) {
-          setCurrentView(View.DASHBOARD);
-          window.history.replaceState({}, '', window.location.pathname);
-        }
-      } else {
-        // No real session — if we're stuck on a view that needs auth, go home
-        // BUT don't override if user just returned from Stripe payment
-        const params = new URLSearchParams(window.location.search);
-        const returningFromStripe = params.get('success') === 'true' || sessionStorage.getItem('afterload_payment_pending') === 'true';
-        const savedView = localStorage.getItem(STORAGE.VIEW);
-        if (savedView === View.DASHBOARD && !returningFromStripe) {
-          setCurrentView(View.HOME);
-          localStorage.setItem(STORAGE.VIEW, View.HOME);
-        }
-      }
-      setAuthReady(true);
-    });
+    let subscription: { unsubscribe: () => void } | undefined;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user?.email) {
-        setUserEmail(session.user.email);
-        if (_event === 'SIGNED_IN') {
-          setCurrentView(View.DASHBOARD);
-          if (window.location.hash) {
+    import('./utils/supabase').then(({ supabase }) => {
+      supabase.auth.getSession().then(({ data: { session } }: any) => {
+        if (session?.user?.email) {
+          setUserEmail(session.user.email);
+          if (window.location.hash.includes('access_token') || window.location.hash.includes('type=magiclink')) {
+            setCurrentView(View.DASHBOARD);
             window.history.replaceState({}, '', window.location.pathname);
           }
+        } else {
+          // No real session — if we're stuck on a view that needs auth, go home
+          // BUT don't override if user just returned from Stripe payment
+          const params = new URLSearchParams(window.location.search);
+          const returningFromStripe = params.get('success') === 'true' || sessionStorage.getItem('afterload_payment_pending') === 'true';
+          const savedView = localStorage.getItem(STORAGE.VIEW);
+          if (savedView === View.DASHBOARD && !returningFromStripe) {
+            setCurrentView(View.HOME);
+            localStorage.setItem(STORAGE.VIEW, View.HOME);
+          }
         }
-      } else {
-        setUserEmail(null);
-      }
+        setAuthReady(true);
+      });
+
+      const { data } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
+        if (session?.user?.email) {
+          setUserEmail(session.user.email);
+          if (_event === 'SIGNED_IN') {
+            setCurrentView(View.DASHBOARD);
+            if (window.location.hash) {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+          }
+        } else {
+          setUserEmail(null);
+        }
+      });
+      subscription = data.subscription;
     });
 
-    return () => subscription.unsubscribe();
+    return () => subscription?.unsubscribe();
   }, []);
 
   // 3. Handle Stripe Redirects, "Resume" Links, and Admin Access
@@ -145,7 +154,9 @@ export default function App() {
     if (returnedFromStripe && userEmail) {
       // Small delay to give webhook time to process
       setTimeout(() => {
-        getPaymentStatus(userEmail).then(setPaymentStatus);
+        import('./utils/database').then(({ getPaymentStatus }) =>
+          getPaymentStatus(userEmail).then(setPaymentStatus)
+        );
       }, 2000);
     }
 
@@ -168,6 +179,7 @@ export default function App() {
   };
 
   const handleInitialIntakeComplete = async (answers: IntakeResponse) => {
+    const { runPreviewDiagnostic } = await import('./utils/previewEngine');
     const preview = runPreviewDiagnostic(answers);
     setPreviewResult(preview);
     setIntakeData(answers);
@@ -176,6 +188,10 @@ export default function App() {
     // Save to Supabase (non-blocking)
     const email = answers.email || userEmail;
     if (email) {
+      const [{ determineTrack }, { saveIntakeResponse, saveDiagnosticResult }] = await Promise.all([
+        import('./utils/diagnosticEngine'),
+        import('./utils/database'),
+      ]);
       const track = determineTrack(answers.business_type);
       const intakeId = await saveIntakeResponse(email, 'initial', answers, track);
       saveDiagnosticResult(email, 'preview', preview, intakeId || undefined);
@@ -190,6 +206,10 @@ export default function App() {
     // Save to Supabase (non-blocking)
     const email = merged.email || userEmail;
     if (email) {
+      const [{ determineTrack }, { saveIntakeResponse }] = await Promise.all([
+        import('./utils/diagnosticEngine'),
+        import('./utils/database'),
+      ]);
       const track = determineTrack(merged.business_type);
       saveIntakeResponse(email, 'deep', merged, track);
     }
@@ -202,6 +222,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+      const { supabase } = await import('./utils/supabase');
       await supabase.auth.signOut();
       setUserEmail(null);
       localStorage.removeItem('afterload_dev_email');
@@ -237,14 +258,10 @@ export default function App() {
 
   const successEmail = intakeData?.email || userEmail;
 
-  // Don't render until we know auth state (prevents flash)
-  if (!authReady) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-bg">
-        <div className="animate-pulse text-brand-dark/30 text-sm font-bold uppercase tracking-widest">Loading...</div>
-      </div>
-    );
-  }
+  // While auth is loading, show HOME instead of a loading spinner.
+  // Once auth resolves, currentView will be corrected to the right view.
+  const needsAuth = currentView === View.DASHBOARD || currentView === View.ADMIN;
+  const activeView = (!authReady && needsAuth) ? View.HOME : currentView;
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden text-brand-dark font-sans selection:bg-brand-accent selection:text-brand-dark">
@@ -266,19 +283,19 @@ export default function App() {
             <button
               onClick={() => navigate(View.HOME)}
               className={`px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
-                currentView === View.HOME
+                activeView === View.HOME
                   ? 'bg-white shadow-sm text-brand-dark'
                   : 'text-brand-dark/50 hover:text-brand-dark'
               }`}
             >
-              <div className={`w-1.5 h-1.5 rounded-full ${currentView === View.HOME ? 'bg-brand-dark' : 'bg-transparent'}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${activeView === View.HOME ? 'bg-brand-dark' : 'bg-transparent'}`} />
               <span className="font-serif italic">Afterload</span>
             </button>
 
             <div className="w-px h-4 bg-black/10 mx-1"></div>
 
             {userEmail ? (
-                currentView === View.DASHBOARD ? (
+                activeView === View.DASHBOARD ? (
                    <div className="px-5 py-2 rounded-full flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase text-brand-dark/50">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                         Dashboard
@@ -293,7 +310,7 @@ export default function App() {
                     </button>
                 )
             ) : (
-                currentView === View.HOME ? (
+                activeView === View.HOME ? (
                     <button
                       onClick={() => navigate(View.LOGIN)}
                       className="px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase text-brand-dark/60 hover:text-brand-dark/60 hover:bg-brand-dark/5 transition-all"
@@ -302,11 +319,11 @@ export default function App() {
                     </button>
                 ) : (
                    <div className="px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase bg-brand-dark text-white shadow-sm flex items-center gap-2">
-                     {currentView === View.DIAGNOSTIC_PREVIEW && "Preview"}
-                     {currentView === View.PAYMENT && "Secure Checkout"}
-                     {currentView === View.DEEP_INTAKE && "Deep Dive"}
-                     {currentView === View.SUCCESS && "Confirmed"}
-                     {currentView === View.LOGIN && "Member Access"}
+                     {activeView === View.DIAGNOSTIC_PREVIEW && "Preview"}
+                     {activeView === View.PAYMENT && "Secure Checkout"}
+                     {activeView === View.DEEP_INTAKE && "Deep Dive"}
+                     {activeView === View.SUCCESS && "Confirmed"}
+                     {activeView === View.LOGIN && "Member Access"}
                    </div>
                 )
             )}
@@ -314,47 +331,49 @@ export default function App() {
       </header>
 
       <main className="relative z-10 w-full min-h-screen flex flex-col">
-        <AnimatePresence mode="wait">
-          {currentView === View.HOME && (
-            <Hero key="hero" onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
-          )}
+        <Suspense fallback={<div className="min-h-screen bg-brand-bg" />}>
+          <AnimatePresence mode="wait">
+            {activeView === View.HOME && (
+              <Hero key="hero" onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
+            )}
 
-          {currentView === View.DASHBOARD && userEmail && (
-            <Dashboard
-                key="dashboard"
-                userEmail={userEmail}
-                intakeData={intakeData}
-                diagnosticResult={null}
-                paymentStatus={paymentStatus}
-                onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
-                onResumeIntake={() => navigate(View.DEEP_INTAKE)}
-                onStartPayment={() => navigate(View.PAYMENT)}
-                onEditAnswers={handleEditAnswers}
-                onResetDiagnostic={handleResetDiagnostic}
-                onUpdateIntake={handleUpdateIntake}
-                onLogout={handleLogout}
-            />
-          )}
+            {activeView === View.DASHBOARD && userEmail && (
+              <Dashboard
+                  key="dashboard"
+                  userEmail={userEmail}
+                  intakeData={intakeData}
+                  diagnosticResult={null}
+                  paymentStatus={paymentStatus}
+                  onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
+                  onResumeIntake={() => navigate(View.DEEP_INTAKE)}
+                  onStartPayment={() => navigate(View.PAYMENT)}
+                  onEditAnswers={handleEditAnswers}
+                  onResetDiagnostic={handleResetDiagnostic}
+                  onUpdateIntake={handleUpdateIntake}
+                  onLogout={handleLogout}
+              />
+            )}
 
-          {currentView === View.DIAGNOSTIC_PREVIEW && (
-            <DiagnosticPreview key="preview" preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
-          )}
-          {currentView === View.PAYMENT && (
-            <PaymentGate key="payment" onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
-          )}
-          {currentView === View.DEEP_INTAKE && (
-            <Intake key="deep-intake" mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
-          )}
-          {currentView === View.SUCCESS && (
-            <SuccessScreen key="success" email={successEmail || undefined} onRestart={handleRestart} />
-          )}
-          {currentView === View.LOGIN && (
-            <Login key="login" onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
-          )}
-          {currentView === View.ADMIN && (
-            <AdminView key="admin" />
-          )}
-        </AnimatePresence>
+            {activeView === View.DIAGNOSTIC_PREVIEW && (
+              <DiagnosticPreview key="preview" preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
+            )}
+            {activeView === View.PAYMENT && (
+              <PaymentGate key="payment" onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
+            )}
+            {activeView === View.DEEP_INTAKE && (
+              <Intake key="deep-intake" mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
+            )}
+            {activeView === View.SUCCESS && (
+              <SuccessScreen key="success" email={successEmail || undefined} onRestart={handleRestart} />
+            )}
+            {activeView === View.LOGIN && (
+              <Login key="login" onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
+            )}
+            {activeView === View.ADMIN && (
+              <AdminView key="admin" />
+            )}
+          </AnimatePresence>
+        </Suspense>
       </main>
     </div>
   );

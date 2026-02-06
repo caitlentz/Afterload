@@ -25,114 +25,16 @@
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="Afterload — Business Clarity Reports" />
     <meta name="twitter:description" content="Operational diagnostics for founder-led service businesses. Find the bottleneck. Get the roadmap." />
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              serif: ['Newsreader', 'serif'],
-              lora: ['Lora', 'serif'],
-            },
-            colors: {
-              cream: {
-                50: '#f6f6f4',
-                100: '#F7F4F6',
-                200: '#f6f6f4',
-                300: '#D3C4CF',
-              },
-              lavender: {
-                50: '#F7F4F6',
-                100: '#EBE5F0',
-                200: '#D3C4CF',
-                300: '#BCAEC3',
-                400: '#A091B4',
-                500: '#7C5A92',
-                600: '#572371',
-                700: '#421762',
-                800: '#2D0B53',
-                900: '#1E0B38',
-                950: '#0F0320',
-              },
-              sage: {
-                300: '#ecefeb',
-                400: '#9CAF9C',
-                500: '#7A9182',
-                600: '#5F7366',
-              },
-              brand: {
-                dark: '#2D2833', 
-                deep: '#3E1C55', // Deepest purple from image
-                rich: '#704386', // Rich purple from image
-                muted: '#A29CB3', // Muted purple-grey from image
-                soft: '#e9e1e3', // Soft pink from image
-                pale: '#F0EDEA', // Pale stone from image
-                mid: '#998692',
-                primary: '#6B6373',
-                accent: '#bbabc6',
-                lilac: '#CDC7D4',
-                glow: '#E2DEE6',
-                silver: '#D8D2DB',
-                light: '#F2EBE1',
-                bg: '#FDFCF7',
-                newGlow: '#D3C4CF',
-                glass: 'rgba(255, 255, 255, 0.4)',
-                glassBorder: 'rgba(255, 255, 255, 0.6)',
-              }
-            }
-          }
-        }
-      }
-    </script>
-    <style>
-      body {
-        overscroll-behavior-y: none;
-      }
-      .hide-scrollbar::-webkit-scrollbar {
-        display: none;
-      }
-      .hide-scrollbar {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
-      }
-      
-      @media print {
-        @page { margin: 0.5in; }
-        body { background-color: white; }
-        header, .no-print, button { display: none !important; }
-        .print-only { display: block !important; }
-        /* Reset containers for print */
-        main, div { 
-          overflow: visible !important; 
-          height: auto !important;
-          max-width: 100% !important;
-          padding: 0 !important;
-          margin: 0 !important;
-        }
-        /* Ensure text is black for readability */
-        * { color: black !important; -webkit-print-color-adjust: exact; }
-      }
-    </style>
-  <script type="importmap">
-{
-  "imports": {
-    "recharts": "https://esm.sh/recharts@^3.7.0",
-    "react": "https://esm.sh/react@^19.2.4",
-    "react/": "https://esm.sh/react@^19.2.4/",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
-    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
-    "framer-motion": "https://esm.sh/framer-motion@^12.29.2"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
+    <!-- Load fonts non-render-blocking: swap to "all" media once loaded -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" media="print" onload="this.media='all'">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Newsreader:ital,opsz,wght@0,6..72,200..800;1,6..72,200..800&display=swap"></noscript>
+
 </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#FDFCF7"><span style="color:rgba(45,40,51,0.25);font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.25em;font-family:system-ui,sans-serif">Afterload</span></div></div>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
