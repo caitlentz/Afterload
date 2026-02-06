@@ -239,15 +239,10 @@ export default function App() {
 
   const successEmail = intakeData?.email || userEmail;
 
-  // Only block rendering for views that need auth — let HOME render immediately
+  // While auth is loading, show HOME instead of a loading spinner.
+  // Once auth resolves, currentView will be corrected to the right view.
   const needsAuth = currentView === View.DASHBOARD || currentView === View.ADMIN;
-  if (!authReady && needsAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-brand-bg">
-        <div className="animate-pulse text-brand-dark/30 text-sm font-bold uppercase tracking-widest">Loading...</div>
-      </div>
-    );
-  }
+  const activeView = (!authReady && needsAuth) ? View.HOME : currentView;
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden text-brand-dark font-sans selection:bg-brand-accent selection:text-brand-dark">
@@ -269,19 +264,19 @@ export default function App() {
             <button
               onClick={() => navigate(View.HOME)}
               className={`px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
-                currentView === View.HOME
+                activeView === View.HOME
                   ? 'bg-white shadow-sm text-brand-dark'
                   : 'text-brand-dark/50 hover:text-brand-dark'
               }`}
             >
-              <div className={`w-1.5 h-1.5 rounded-full ${currentView === View.HOME ? 'bg-brand-dark' : 'bg-transparent'}`} />
+              <div className={`w-1.5 h-1.5 rounded-full ${activeView === View.HOME ? 'bg-brand-dark' : 'bg-transparent'}`} />
               <span className="font-serif italic">Afterload</span>
             </button>
 
             <div className="w-px h-4 bg-black/10 mx-1"></div>
 
             {userEmail ? (
-                currentView === View.DASHBOARD ? (
+                activeView === View.DASHBOARD ? (
                    <div className="px-5 py-2 rounded-full flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase text-brand-dark/50">
                         <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
                         Dashboard
@@ -296,7 +291,7 @@ export default function App() {
                     </button>
                 )
             ) : (
-                currentView === View.HOME ? (
+                activeView === View.HOME ? (
                     <button
                       onClick={() => navigate(View.LOGIN)}
                       className="px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase text-brand-dark/60 hover:text-brand-dark/60 hover:bg-brand-dark/5 transition-all"
@@ -305,11 +300,11 @@ export default function App() {
                     </button>
                 ) : (
                    <div className="px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase bg-brand-dark text-white shadow-sm flex items-center gap-2">
-                     {currentView === View.DIAGNOSTIC_PREVIEW && "Preview"}
-                     {currentView === View.PAYMENT && "Secure Checkout"}
-                     {currentView === View.DEEP_INTAKE && "Deep Dive"}
-                     {currentView === View.SUCCESS && "Confirmed"}
-                     {currentView === View.LOGIN && "Member Access"}
+                     {activeView === View.DIAGNOSTIC_PREVIEW && "Preview"}
+                     {activeView === View.PAYMENT && "Secure Checkout"}
+                     {activeView === View.DEEP_INTAKE && "Deep Dive"}
+                     {activeView === View.SUCCESS && "Confirmed"}
+                     {activeView === View.LOGIN && "Member Access"}
                    </div>
                 )
             )}
@@ -317,13 +312,13 @@ export default function App() {
       </header>
 
       <main className="relative z-10 w-full min-h-screen flex flex-col">
-        <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-brand-bg"><div className="animate-pulse text-brand-dark/30 text-sm font-bold uppercase tracking-widest">Loading...</div></div>}>
+        <Suspense fallback={<div className="min-h-screen bg-brand-bg" />}>
           <AnimatePresence mode="wait">
-            {currentView === View.HOME && (
+            {activeView === View.HOME && (
               <Hero key="hero" onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
             )}
 
-            {currentView === View.DASHBOARD && userEmail && (
+            {activeView === View.DASHBOARD && userEmail && (
               <Dashboard
                   key="dashboard"
                   userEmail={userEmail}
@@ -340,22 +335,22 @@ export default function App() {
               />
             )}
 
-            {currentView === View.DIAGNOSTIC_PREVIEW && (
+            {activeView === View.DIAGNOSTIC_PREVIEW && (
               <DiagnosticPreview key="preview" preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
             )}
-            {currentView === View.PAYMENT && (
+            {activeView === View.PAYMENT && (
               <PaymentGate key="payment" onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
             )}
-            {currentView === View.DEEP_INTAKE && (
+            {activeView === View.DEEP_INTAKE && (
               <Intake key="deep-intake" mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
             )}
-            {currentView === View.SUCCESS && (
+            {activeView === View.SUCCESS && (
               <SuccessScreen key="success" email={successEmail || undefined} onRestart={handleRestart} />
             )}
-            {currentView === View.LOGIN && (
+            {activeView === View.LOGIN && (
               <Login key="login" onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
             )}
-            {currentView === View.ADMIN && (
+            {activeView === View.ADMIN && (
               <AdminView key="admin" />
             )}
           </AnimatePresence>
