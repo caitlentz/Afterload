@@ -85,8 +85,11 @@ export default function App() {
         }
       } else {
         // No real session — if we're stuck on a view that needs auth, go home
+        // BUT don't override if user just returned from Stripe payment
+        const params = new URLSearchParams(window.location.search);
+        const returningFromStripe = params.get('success') === 'true' || sessionStorage.getItem('afterload_payment_pending') === 'true';
         const savedView = localStorage.getItem(STORAGE.VIEW);
-        if (savedView === View.DASHBOARD) {
+        if (savedView === View.DASHBOARD && !returningFromStripe) {
           setCurrentView(View.HOME);
           localStorage.setItem(STORAGE.VIEW, View.HOME);
         }
@@ -118,14 +121,23 @@ export default function App() {
 
     if (params.get('success') === 'true' || params.get('resume') === 'true') {
         window.history.replaceState({}, '', window.location.pathname);
-        setCurrentView(View.DASHBOARD);
+        // If logged in, go to dashboard; otherwise show success screen
+        if (userEmail) {
+          setCurrentView(View.DASHBOARD);
+        } else {
+          setCurrentView(View.SUCCESS);
+        }
         returnedFromStripe = true;
     }
     // Detect return from Stripe Buy Button (redirects to root with no params)
-    // If we flagged a payment as pending and user lands back on the site, route to dashboard
+    // If we flagged a payment as pending and user lands back on the site, route appropriately
     if (sessionStorage.getItem('afterload_payment_pending') === 'true') {
         sessionStorage.removeItem('afterload_payment_pending');
-        setCurrentView(View.DASHBOARD);
+        if (userEmail) {
+          setCurrentView(View.DASHBOARD);
+        } else {
+          setCurrentView(View.SUCCESS);
+        }
         returnedFromStripe = true;
     }
 
