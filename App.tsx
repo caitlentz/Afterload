@@ -11,7 +11,7 @@ import AdminView from './components/AdminView';
 import { IntakeResponse } from './utils/diagnosticEngine';
 import { runPreviewDiagnostic, PreviewResult } from './utils/previewEngine';
 import { supabase } from './utils/supabase';
-import { saveIntakeResponse, saveDiagnosticResult } from './utils/database';
+import { saveIntakeResponse, saveDiagnosticResult, getPaymentStatus, PaymentStatus } from './utils/database';
 import { determineTrack } from './utils/diagnosticEngine';
 import { CheckCircle, Mail, User } from 'lucide-react';
 
@@ -58,7 +58,21 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
+  const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>({
+    depositPaid: false,
+    balancePaid: false,
+    depositDate: null,
+    balanceDate: null,
+  });
+
   const { scrollYProgress } = useScroll();
+
+  // Fetch payment status whenever we have an email
+  useEffect(() => {
+    if (userEmail) {
+      getPaymentStatus(userEmail).then(setPaymentStatus);
+    }
+  }, [userEmail]);
 
   // 2. Supabase Auth Listener
   useEffect(() => {
@@ -100,10 +114,29 @@ export default function App() {
   // 3. Handle Stripe Redirects, "Resume" Links, and Admin Access
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    let returnedFromStripe = false;
+
     if (params.get('success') === 'true' || params.get('resume') === 'true') {
         window.history.replaceState({}, '', window.location.pathname);
         setCurrentView(View.DASHBOARD);
+        returnedFromStripe = true;
     }
+    // Detect return from Stripe Buy Button (redirects to root with no params)
+    // If we flagged a payment as pending and user lands back on the site, route to dashboard
+    if (sessionStorage.getItem('afterload_payment_pending') === 'true') {
+        sessionStorage.removeItem('afterload_payment_pending');
+        setCurrentView(View.DASHBOARD);
+        returnedFromStripe = true;
+    }
+
+    // If returning from Stripe, re-fetch payment status (webhook may have already fired)
+    if (returnedFromStripe && userEmail) {
+      // Small delay to give webhook time to process
+      setTimeout(() => {
+        getPaymentStatus(userEmail).then(setPaymentStatus);
+      }, 2000);
+    }
+
     // Secret admin route: ?admin=true
     if (params.get('admin') === 'true') {
         setCurrentView(View.ADMIN);
@@ -280,8 +313,10 @@ export default function App() {
                 userEmail={userEmail}
                 intakeData={intakeData}
                 diagnosticResult={null}
+                paymentStatus={paymentStatus}
                 onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
                 onResumeIntake={() => navigate(View.DEEP_INTAKE)}
+                onStartPayment={() => navigate(View.PAYMENT)}
                 onEditAnswers={handleEditAnswers}
                 onResetDiagnostic={handleResetDiagnostic}
                 onUpdateIntake={handleUpdateIntake}

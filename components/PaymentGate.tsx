@@ -31,6 +31,9 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
       script.async = true;
       document.body.appendChild(script);
     }
+
+    // Flag that user entered the payment flow — used to detect Stripe redirect-back
+    sessionStorage.setItem('afterload_payment_pending', 'true');
   }, []);
 
   return (
@@ -45,7 +48,10 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
           className="mb-8"
         >
           <button
-            onClick={onBack}
+            onClick={() => {
+              sessionStorage.removeItem('afterload_payment_pending');
+              onBack();
+            }}
             className="flex items-center gap-2 text-brand-dark/40 hover:text-brand-dark transition-colors text-xs font-bold uppercase tracking-widest"
           >
             <ArrowLeft size={14} />
@@ -134,7 +140,10 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
           <div className="px-8 md:px-12 pb-10">
             <div className="pt-6 border-t border-brand-dark/5 flex justify-center">
               <button
-                onClick={onSuccess}
+                onClick={() => {
+                  sessionStorage.removeItem('afterload_payment_pending');
+                  onSuccess();
+                }}
                 className="text-[10px] font-bold uppercase tracking-widest text-brand-dark/30 hover:text-brand-dark/60 transition-colors"
               >
                 Already paid? <span className="underline">Continue here</span>

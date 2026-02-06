@@ -131,3 +131,56 @@ export async function saveAdminNote(clientId: string, note: string) {
   if (error) console.error('saveAdminNote error:', error);
   return !error;
 }
+
+// ------------------------------------------------------------------
+// PAYMENT STATUS
+// Checks the payments table for this user's deposit & balance status.
+// Returns { depositPaid, balancePaid, depositDate, balanceDate }
+// ------------------------------------------------------------------
+export interface PaymentStatus {
+  depositPaid: boolean;
+  balancePaid: boolean;
+  depositDate: string | null;
+  balanceDate: string | null;
+}
+
+export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
+  const result: PaymentStatus = {
+    depositPaid: false,
+    balancePaid: false,
+    depositDate: null,
+    balanceDate: null,
+  };
+
+  try {
+    const { data: payments, error } = await supabase
+      .from('payments')
+      .select('payment_type, status, created_at')
+      .eq('email', email.toLowerCase())
+      .eq('status', 'succeeded')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      // Table might not exist yet — fail gracefully
+      console.error('getPaymentStatus error:', error);
+      return result;
+    }
+
+    if (!payments || payments.length === 0) return result;
+
+    for (const p of payments) {
+      if (p.payment_type === 'deposit') {
+        result.depositPaid = true;
+        result.depositDate = p.created_at;
+      }
+      if (p.payment_type === 'balance') {
+        result.balancePaid = true;
+        result.balanceDate = p.created_at;
+      }
+    }
+  } catch (e) {
+    console.error('getPaymentStatus unexpected error:', e);
+  }
+
+  return result;
+}
