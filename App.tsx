@@ -2,12 +2,12 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { AnimatePresence, motion, useScroll } from 'framer-motion';
 import Hero from './components/Hero';
 import Background from './components/Background';
-import { IntakeResponse } from './utils/diagnosticEngine';
-import { runPreviewDiagnostic, PreviewResult } from './utils/previewEngine';
-import { supabase } from './utils/supabase';
-import { saveIntakeResponse, saveDiagnosticResult, getPaymentStatus, PaymentStatus } from './utils/database';
-import { determineTrack } from './utils/diagnosticEngine';
 import { CheckCircle, Mail, User } from 'lucide-react';
+
+// Type-only imports — erased at compile time, zero bundle cost
+import type { IntakeResponse } from './utils/diagnosticEngine';
+import type { PreviewResult } from './utils/previewEngine';
+import type { PaymentStatus } from './utils/database';
 
 // Lazy-load views that aren't needed on initial page load
 const Intake = lazy(() => import('./components/Intake'));
@@ -69,51 +69,58 @@ export default function App() {
 
   const { scrollYProgress } = useScroll();
 
-  // Fetch payment status whenever we have an email
+  // Fetch payment status whenever we have an email (lazy-loads database module)
   useEffect(() => {
     if (userEmail) {
-      getPaymentStatus(userEmail).then(setPaymentStatus);
+      import('./utils/database').then(({ getPaymentStatus }) =>
+        getPaymentStatus(userEmail).then(setPaymentStatus)
+      );
     }
   }, [userEmail]);
 
-  // 2. Supabase Auth Listener
+  // 2. Supabase Auth Listener (lazy-loads supabase module)
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user?.email) {
-        setUserEmail(session.user.email);
-        if (window.location.hash.includes('access_token') || window.location.hash.includes('type=magiclink')) {
-          setCurrentView(View.DASHBOARD);
-          window.history.replaceState({}, '', window.location.pathname);
-        }
-      } else {
-        // No real session — if we're stuck on a view that needs auth, go home
-        // BUT don't override if user just returned from Stripe payment
-        const params = new URLSearchParams(window.location.search);
-        const returningFromStripe = params.get('success') === 'true' || sessionStorage.getItem('afterload_payment_pending') === 'true';
-        const savedView = localStorage.getItem(STORAGE.VIEW);
-        if (savedView === View.DASHBOARD && !returningFromStripe) {
-          setCurrentView(View.HOME);
-          localStorage.setItem(STORAGE.VIEW, View.HOME);
-        }
-      }
-      setAuthReady(true);
-    });
+    let subscription: { unsubscribe: () => void } | undefined;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user?.email) {
-        setUserEmail(session.user.email);
-        if (_event === 'SIGNED_IN') {
-          setCurrentView(View.DASHBOARD);
-          if (window.location.hash) {
+    import('./utils/supabase').then(({ supabase }) => {
+      supabase.auth.getSession().then(({ data: { session } }: any) => {
+        if (session?.user?.email) {
+          setUserEmail(session.user.email);
+          if (window.location.hash.includes('access_token') || window.location.hash.includes('type=magiclink')) {
+            setCurrentView(View.DASHBOARD);
             window.history.replaceState({}, '', window.location.pathname);
           }
+        } else {
+          // No real session — if we're stuck on a view that needs auth, go home
+          // BUT don't override if user just returned from Stripe payment
+          const params = new URLSearchParams(window.location.search);
+          const returningFromStripe = params.get('success') === 'true' || sessionStorage.getItem('afterload_payment_pending') === 'true';
+          const savedView = localStorage.getItem(STORAGE.VIEW);
+          if (savedView === View.DASHBOARD && !returningFromStripe) {
+            setCurrentView(View.HOME);
+            localStorage.setItem(STORAGE.VIEW, View.HOME);
+          }
         }
-      } else {
-        setUserEmail(null);
-      }
+        setAuthReady(true);
+      });
+
+      const { data } = supabase.auth.onAuthStateChange((_event: string, session: any) => {
+        if (session?.user?.email) {
+          setUserEmail(session.user.email);
+          if (_event === 'SIGNED_IN') {
+            setCurrentView(View.DASHBOARD);
+            if (window.location.hash) {
+              window.history.replaceState({}, '', window.location.pathname);
+            }
+          }
+        } else {
+          setUserEmail(null);
+        }
+      });
+      subscription = data.subscription;
     });
 
-    return () => subscription.unsubscribe();
+    return () => subscription?.unsubscribe();
   }, []);
 
   // 3. Handle Stripe Redirects, "Resume" Links, and Admin Access
@@ -147,7 +154,9 @@ export default function App() {
     if (returnedFromStripe && userEmail) {
       // Small delay to give webhook time to process
       setTimeout(() => {
-        getPaymentStatus(userEmail).then(setPaymentStatus);
+        import('./utils/database').then(({ getPaymentStatus }) =>
+          getPaymentStatus(userEmail).then(setPaymentStatus)
+        );
       }, 2000);
     }
 
@@ -170,6 +179,7 @@ export default function App() {
   };
 
   const handleInitialIntakeComplete = async (answers: IntakeResponse) => {
+    const { runPreviewDiagnostic } = await import('./utils/previewEngine');
     const preview = runPreviewDiagnostic(answers);
     setPreviewResult(preview);
     setIntakeData(answers);
@@ -178,6 +188,10 @@ export default function App() {
     // Save to Supabase (non-blocking)
     const email = answers.email || userEmail;
     if (email) {
+      const [{ determineTrack }, { saveIntakeResponse, saveDiagnosticResult }] = await Promise.all([
+        import('./utils/diagnosticEngine'),
+        import('./utils/database'),
+      ]);
       const track = determineTrack(answers.business_type);
       const intakeId = await saveIntakeResponse(email, 'initial', answers, track);
       saveDiagnosticResult(email, 'preview', preview, intakeId || undefined);
@@ -192,6 +206,10 @@ export default function App() {
     // Save to Supabase (non-blocking)
     const email = merged.email || userEmail;
     if (email) {
+      const [{ determineTrack }, { saveIntakeResponse }] = await Promise.all([
+        import('./utils/diagnosticEngine'),
+        import('./utils/database'),
+      ]);
       const track = determineTrack(merged.business_type);
       saveIntakeResponse(email, 'deep', merged, track);
     }
@@ -204,6 +222,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+      const { supabase } = await import('./utils/supabase');
       await supabase.auth.signOut();
       setUserEmail(null);
       localStorage.removeItem('afterload_dev_email');
