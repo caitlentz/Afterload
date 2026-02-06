@@ -1,5 +1,4 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import { AnimatePresence, motion, useScroll } from 'framer-motion';
 import Hero from './components/Hero';
 import Background from './components/Background';
 import { CheckCircle, Mail, User } from 'lucide-react';
@@ -35,8 +34,6 @@ const STORAGE = {
   VIEW: 'afterload_view',
 };
 
-// Premium Easing Curve
-const transitionConfig = { duration: 0.8, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] };
 
 export default function App() {
   // 1. Initialize State
@@ -66,8 +63,6 @@ export default function App() {
     depositDate: null,
     balanceDate: null,
   });
-
-  const { scrollYProgress } = useScroll();
 
   // Fetch payment status whenever we have an email (lazy-loads database module)
   useEffect(() => {
@@ -269,16 +264,8 @@ export default function App() {
 
       {/* Header - Centered Pill Style */}
       <header className="fixed top-0 left-0 right-0 z-50 flex justify-center py-8 pointer-events-none">
-        <motion.div
-          className="absolute top-0 left-0 right-0 h-[3px] bg-brand-rich/60 origin-left"
-          style={{ scaleX: scrollYProgress }}
-        />
-
-        <motion.div
-          initial={{ y: -20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ ...transitionConfig, delay: 0.2 }}
-          className="pointer-events-auto bg-white/80 backdrop-blur-md px-1 py-1 rounded-full border border-black/5 shadow-sm flex items-center gap-1"
+        <div
+          className="pointer-events-auto bg-white/80 backdrop-blur-md px-1 py-1 rounded-full border border-black/5 shadow-sm flex items-center gap-1 animate-[slideDown_0.8s_cubic-bezier(0.22,1,0.36,1)_0.2s_both]"
         >
             <button
               onClick={() => navigate(View.HOME)}
@@ -327,19 +314,17 @@ export default function App() {
                    </div>
                 )
             )}
-        </motion.div>
+        </div>
       </header>
 
       <main className="relative z-10 w-full min-h-screen flex flex-col">
         <Suspense fallback={<div className="min-h-screen bg-brand-bg" />}>
-          <AnimatePresence mode="wait">
             {activeView === View.HOME && (
-              <Hero key="hero" onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
+              <Hero onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
             )}
 
             {activeView === View.DASHBOARD && userEmail && (
               <Dashboard
-                  key="dashboard"
                   userEmail={userEmail}
                   intakeData={intakeData}
                   diagnosticResult={null}
@@ -355,32 +340,31 @@ export default function App() {
             )}
 
             {activeView === View.DIAGNOSTIC_PREVIEW && (
-              <DiagnosticPreview key="preview" preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
+              <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
             )}
             {activeView === View.PAYMENT && (
-              <PaymentGate key="payment" onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
+              <PaymentGate onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
             )}
             {activeView === View.DEEP_INTAKE && (
-              <Intake key="deep-intake" mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
+              <Intake mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
             )}
             {activeView === View.SUCCESS && (
-              <SuccessScreen key="success" email={successEmail || undefined} onRestart={handleRestart} />
+              <SuccessScreen email={successEmail || undefined} onRestart={handleRestart} />
             )}
             {activeView === View.LOGIN && (
-              <Login key="login" onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
+              <Login onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
             )}
             {activeView === View.ADMIN && (
-              <AdminView key="admin" />
+              <AdminView />
             )}
-          </AnimatePresence>
         </Suspense>
       </main>
     </div>
   );
 }
 
-const SuccessScreen = ({ email, onRestart }: { email?: string, onRestart: () => void, key?: React.Key }) => (
-  <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
+const SuccessScreen = ({ email, onRestart }: { email?: string, onRestart: () => void }) => (
+  <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center animate-[fadeIn_0.6s_ease-out]">
     <div className="w-20 h-20 rounded-full bg-brand-deep text-white flex items-center justify-center mb-8 shadow-2xl">
       <CheckCircle size={40} />
     </div>
@@ -397,5 +381,5 @@ const SuccessScreen = ({ email, onRestart }: { email?: string, onRestart: () => 
         </div>
         <button onClick={onRestart} className="text-sm text-brand-dark/40 hover:text-brand-dark underline mt-4">Return to Home</button>
     </div>
-  </motion.div>
+  </div>
 );
