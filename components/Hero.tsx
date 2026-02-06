@@ -16,6 +16,22 @@ interface HeroProps {
   key?: React.Key;
 }
 
+function SectionPlaceholder() {
+  return (
+    <div className="w-full flex flex-col items-center gap-24 py-24 px-4 animate-pulse">
+      <div className="w-full max-w-2xl flex flex-col items-center gap-6">
+        <div className="h-12 w-3/4 rounded-lg bg-brand-dark/5" />
+        <div className="h-4 w-1/2 rounded bg-brand-dark/5" />
+        <div className="h-4 w-2/3 rounded bg-brand-dark/5" />
+      </div>
+      <div className="w-full max-w-2xl flex flex-col items-center gap-6">
+        <div className="h-12 w-2/3 rounded-lg bg-brand-dark/5" />
+        <div className="h-4 w-1/2 rounded bg-brand-dark/5" />
+      </div>
+    </div>
+  );
+}
+
 export default function Hero({ onDiagnosticComplete, onLoginClick }: HeroProps) {
   const handleScrollToIntake = () => {
     const intakeSection = document.getElementById('intake');
@@ -137,14 +153,14 @@ export default function Hero({ onDiagnosticComplete, onLoginClick }: HeroProps) 
         </div>
       </section>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<SectionPlaceholder />}>
         <SelfDiagnosis onStartIntake={handleScrollToIntake} />
         <AntiPitch />
         <Delivery />
         <FAQ />
       </Suspense>
 
-      <Suspense fallback={null}>
+      <Suspense fallback={<div className="min-h-[60vh]" />}>
         <Intake onComplete={onDiagnosticComplete} />
       </Suspense>
 
