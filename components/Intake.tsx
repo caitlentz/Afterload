@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Check, ArrowRight, RotateCcw } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { DEEP_DIVE_QUESTIONS, DeepQuestion } from '../utils/deepDiveQuestions';
 
 // Types for initial intake
@@ -280,28 +279,26 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
     <section id="intake" className="w-full min-h-screen flex flex-col items-center justify-center py-24 px-6 relative z-10">
       <div className="w-full max-w-2xl mx-auto">
         <div className="text-center mb-12 md:mb-16 relative">
-           <motion.div initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-brand-rich/20 bg-brand-soft/30 backdrop-blur-md text-[10px] font-bold tracking-[0.2em] uppercase text-brand-rich mb-8 relative z-10">
+           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-brand-rich/20 bg-brand-soft/30 backdrop-blur-md text-[10px] font-bold tracking-[0.2em] uppercase text-brand-rich mb-8 relative z-10 animate-[fadeInUp_0.5s_ease-out_both]">
               <span className="w-1.5 h-1.5 rounded-full bg-brand-rich shadow-brand-rich/50"/>
               {mode === 'initial' ? 'The Diagnostic' : 'Deep Dive'}
-           </motion.div>
-           <motion.h2 initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }} className="relative z-10 text-5xl md:text-7xl font-serif text-brand-deep leading-[0.9]">
+           </div>
+           <h2 className="relative z-10 text-5xl md:text-7xl font-serif text-brand-deep leading-[0.9] animate-[fadeInUp_0.5s_ease-out_0.1s_both]">
              {mode === 'initial' ? "Let's Start Here." : "Architected Clarity."}
-           </motion.h2>
+           </h2>
         </div>
 
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }} className="max-w-xl w-full mx-auto bg-white/70 backdrop-blur-3xl p-12 md:p-16 rounded-[2.5rem] shadow-glass text-center border border-white/90 relative overflow-hidden">
+        <div className="max-w-xl w-full mx-auto bg-white/70 backdrop-blur-3xl p-12 md:p-16 rounded-[2.5rem] shadow-glass text-center border border-white/90 relative overflow-hidden animate-[fadeInUp_0.5s_ease-out_0.2s_both]">
              <div className="flex justify-between items-center mb-10">
                  <div className="text-[10px] font-bold tracking-widest text-brand-dark/30 uppercase">
                     {(mode === 'initial' && isRoutingPhase) ? 'Getting Started' : `Question ${step + 1} / ${totalSteps}`}
                  </div>
                  <div className="w-24 h-1 bg-brand-dark/5 rounded-full overflow-hidden">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 0.5, ease: "circOut" }} className="h-full bg-brand-rich"/>
+                    <div className="h-full bg-brand-rich" style={{ width: `${progress}%`, transition: 'width 0.5s ease-out' }}/>
                  </div>
              </div>
 
-             <AnimatePresence mode="wait" custom={direction}>
-                <motion.div
-                key={`${mode}-${step}`} custom={direction} initial={{ opacity: 0, x: direction * 50 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: direction * -50 }} transition={{ duration: 0.3, ease: "easeOut" }} className="w-full flex-grow flex flex-col">
+             <div key={`${mode}-${step}`} className="w-full flex-grow flex flex-col animate-[fadeIn_0.3s_ease-out_both]">
                     {currentQ && <>
                         <div className="mb-8 min-h-[8rem]">
                             <h3 className="text-2xl md:text-3xl font-serif text-brand-dark leading-tight mb-4">{currentQ.text}</h3>
@@ -311,7 +308,7 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
                     <div className="mt-10">
                         <div className="w-full flex justify-between items-center pt-6 border-t border-brand-dark/5">
                             {(step === 0 && (mode === 'deep' || isRoutingPhase) && canRestore) ? (
-                                 <motion.button initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} onClick={handleRestore} className="px-4 py-2 rounded-lg bg-brand-dark/5 hover:bg-brand-dark/10 text-brand-dark/60 hover:text-brand-rich transition-all text-[10px] font-bold uppercase tracking-widest flex items-center gap-2"><RotateCcw size={12} />Resume Session</motion.button>
+                                 <button onClick={handleRestore} className="px-4 py-2 rounded-lg bg-brand-dark/5 hover:bg-brand-dark/10 text-brand-dark/60 hover:text-brand-rich transition-all text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 animate-[scaleIn_0.3s_ease-out_both]"><RotateCcw size={12} />Resume Session</button>
                             ) : (
                                 <button onClick={handlePrev} disabled={step === 0 && (mode === 'deep' || isRoutingPhase)} className={`text-sm font-medium text-brand-dark/40 hover:text-brand-dark transition-colors flex items-center gap-2 ${step === 0 && (mode === 'deep' || isRoutingPhase) ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}><ArrowLeft size={14} /> Back</button>
                             )}
@@ -321,9 +318,8 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
                             )}
                         </div>
                     </div>
-                </motion.div>
-             </AnimatePresence>
-        </motion.div>
+                </div>
+        </div>
       </div>
     </section>
   );

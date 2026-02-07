@@ -1,5 +1,4 @@
 import React, { useEffect } from 'react';
-import { motion } from 'framer-motion';
 import { ArrowLeft, Shield, Check } from 'lucide-react';
 
 // Workaround for custom element type safety
@@ -11,8 +10,6 @@ interface PaymentGateProps {
   cost: number;
   key?: React.Key;
 }
-
-const smoothEase = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 const deliverables = [
   'Full constraint analysis with root cause mapping',
@@ -41,11 +38,8 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
       <div className="w-full max-w-3xl mx-auto px-6 pt-32 pb-24">
 
         {/* Back button */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4 }}
-          className="mb-8"
+        <div
+          className="mb-8 animate-[fadeIn_0.4s_ease-out_both]"
         >
           <button
             onClick={() => {
@@ -57,14 +51,11 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
             <ArrowLeft size={14} />
             <span>Back to Preview</span>
           </button>
-        </motion.div>
+        </div>
 
         {/* Main Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: smoothEase }}
-          className="bg-white/70 backdrop-blur-3xl rounded-[2.5rem] border border-white/90 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] overflow-hidden"
+        <div
+          className="bg-white/70 backdrop-blur-3xl rounded-[2.5rem] border border-white/90 shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] overflow-hidden animate-[fadeInUp_0.6s_ease-out_both]"
         >
           {/* Header */}
           <div className="p-8 md:p-12 pb-0 text-center">
@@ -151,7 +142,7 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
             </div>
           </div>
 
-        </motion.div>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+// Outcome.tsx is currently unused (not imported anywhere)
 
 const steps = [
   {

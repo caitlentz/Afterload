@@ -33,9 +33,6 @@ export default defineConfig(({ mode }) => {
               if (id.includes('node_modules/@supabase/')) {
                 return 'supabase';
               }
-              if (id.includes('node_modules/framer-motion/')) {
-                return 'framer-motion';
-              }
             }
           }
         }
