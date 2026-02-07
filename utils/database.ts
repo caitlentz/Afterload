@@ -93,40 +93,31 @@ export async function saveDiagnosticResult(
 
 // ------------------------------------------------------------------
 // FETCH ALL CLIENTS (for admin view)
-// Returns clients with their latest intake + diagnostic data
+// Uses a SECURITY DEFINER RPC function that bypasses RLS.
+// This way the admin dashboard can see all clients without needing
+// the service role key on the client side.
 // ------------------------------------------------------------------
 export async function fetchAllClients() {
-  const { data: clients, error } = await supabase
-    .from('clients')
-    .select(`
-      *,
-      intake_responses (
-        id, mode, track, answers, created_at
-      ),
-      diagnostic_results (
-        id, result_type, report, created_at
-      ),
-      admin_notes (
-        id, note, created_at
-      )
-    `)
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('admin_fetch_all_clients');
 
   if (error) {
     console.error('fetchAllClients error:', error);
     return [];
   }
 
-  return clients || [];
+  // The RPC returns a jsonb array — Supabase client returns it as parsed JSON
+  return (data as any[]) || [];
 }
 
 // ------------------------------------------------------------------
 // SAVE ADMIN NOTE
+// Uses a SECURITY DEFINER RPC to bypass RLS on admin_notes table.
 // ------------------------------------------------------------------
 export async function saveAdminNote(clientId: string, note: string) {
-  const { error } = await supabase
-    .from('admin_notes')
-    .insert({ client_id: clientId, note });
+  const { error } = await supabase.rpc('admin_save_note', {
+    p_client_id: clientId,
+    p_note: note,
+  });
 
   if (error) console.error('saveAdminNote error:', error);
   return !error;
@@ -146,29 +137,28 @@ export interface PaymentStatus {
 
 // ------------------------------------------------------------------
 // FETCH ALL PAYMENTS (for admin view)
-// Returns all payment records with email, type, status, amounts
+// Uses a SECURITY DEFINER RPC that bypasses RLS.
 // ------------------------------------------------------------------
 export async function fetchAllPayments() {
-  const { data, error } = await supabase
-    .from('payments')
-    .select('id, email, payment_type, amount_cents, status, created_at, stripe_checkout_session_id')
-    .order('created_at', { ascending: false });
+  const { data, error } = await supabase.rpc('admin_fetch_all_payments');
 
   if (error) {
     console.error('fetchAllPayments error:', error);
     return [];
   }
-  return data || [];
+  return (data as any[]) || [];
 }
 
 // ------------------------------------------------------------------
 // SAVE ADMIN NOTE WITH TAG
 // Saves a note with an optional tag (e.g. 'delivered', 'status', 'note')
+// Uses the same SECURITY DEFINER RPC as saveAdminNote.
 // ------------------------------------------------------------------
 export async function saveAdminTaggedNote(clientId: string, note: string, tag: string = 'note') {
-  const { error } = await supabase
-    .from('admin_notes')
-    .insert({ client_id: clientId, note: `[${tag}] ${note}` });
+  const { error } = await supabase.rpc('admin_save_note', {
+    p_client_id: clientId,
+    p_note: `[${tag}] ${note}`,
+  });
 
   if (error) console.error('saveAdminTaggedNote error:', error);
   return !error;

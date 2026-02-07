@@ -9,9 +9,12 @@ import type { PaymentStatus } from './utils/database';
 
 // ─── Error Boundary for lazy-loaded chunks ─────────────────────────
 // Catches failed dynamic imports (stale hashes after deploy) and auto-reloads
-class ChunkErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
+interface ChunkBoundaryProps { children: ReactNode }
+interface ChunkBoundaryState { hasError: boolean }
+
+class ChunkErrorBoundary extends Component<ChunkBoundaryProps, ChunkBoundaryState> {
+  state: ChunkBoundaryState = { hasError: false };
+  static getDerivedStateFromError(): ChunkBoundaryState { return { hasError: true }; }
   componentDidCatch(error: Error, _info: ErrorInfo) {
     if (error.message?.includes('dynamically imported module') || error.message?.includes('Loading chunk')) {
       // Stale chunk — reload once to get fresh assets
