@@ -764,23 +764,19 @@ export default function Dashboard({
                       Edit Answers
                     </button>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Footer */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="flex items-center justify-center pt-8 border-t border-brand-dark/5"
+        <div
+          className="flex items-center justify-center pt-8 border-t border-brand-dark/5 animate-[fadeIn_0.6s_ease-out_0.5s_both]"
         >
           <div className="text-[10px] text-brand-dark/20 font-bold uppercase tracking-widest">
             {businessName || 'Afterload'}
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );
