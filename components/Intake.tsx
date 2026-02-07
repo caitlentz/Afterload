@@ -83,6 +83,13 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
   const STORAGE_KEY = `afterload_intake_progress_${mode}`;
   const [canRestore, setCanRestore] = useState(false);
 
+  // Sync userEmail into contactForm when auth loads asynchronously
+  useEffect(() => {
+    if (userEmail && !contactForm.email) {
+      setContactForm(prev => ({ ...prev, email: userEmail }));
+    }
+  }, [userEmail]);
+
   const [deepDiveQuestions, setDeepDiveQuestions] = useState<DeepQuestion[]>([]);
   const [showRecoveryForm, setShowRecoveryForm] = useState(initialDataMissing && mode === 'deep');
 

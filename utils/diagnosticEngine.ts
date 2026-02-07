@@ -1,6 +1,10 @@
-import { DEEP_DIVE_QUESTIONS } from './deepDiveQuestions';
-
 export type IntakeResponse = {
+  // Contact / Identity Fields
+  email?: string;
+  website?: string;
+  specificType?: string;
+  businessType?: string;
+
   // Initial Intake Fields
   firstName?: string;
   businessName?: string;
@@ -155,15 +159,6 @@ export type DiagnosticResult = {
 function parseDollars(val: string | undefined): number {
   if (!val) return 0;
   return parseInt(val.replace(/[^0-9]/g, '')) || 0;
-}
-
-function parseHours(val: string | undefined): number {
-  if (!val) return 0;
-  if (val.includes('4+')) return 4;
-  if (val.includes('2-3')) return 3;
-  if (val.includes('1-2')) return 1.5;
-  if (val.includes('Less than')) return 0.5;
-  return parseInt(val) || 0;
 }
 
 export function determineTrack(businessType: string | undefined): 'A' | 'B' | 'C' {

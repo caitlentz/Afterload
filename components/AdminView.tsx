@@ -129,7 +129,8 @@ function formatDateTime(dateStr: string) {
 }
 
 function formatCents(cents: number) {
-  return `$${(cents / 100).toFixed(0)}`;
+  const dollars = cents / 100;
+  return dollars % 1 === 0 ? `$${dollars.toFixed(0)}` : `$${dollars.toFixed(2)}`;
 }
 
 // ─── Types ──────────────────────────────────────────────────────────
@@ -166,7 +167,7 @@ export default function AdminView() {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedClient, setExpandedClient] = useState<string | null>(null);
-  const [noteText, setNoteText] = useState('');
+  const [noteTexts, setNoteTexts] = useState<Record<string, string>>({});
   const [savingNote, setSavingNote] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<ClientStage | 'all'>('all');
@@ -194,10 +195,11 @@ export default function AdminView() {
   }, [unlocked]);
 
   const handleSaveNote = async (clientId: string) => {
-    if (!noteText.trim()) return;
+    const text = noteTexts[clientId]?.trim();
+    if (!text) return;
     setSavingNote(true);
-    await saveAdminNote(clientId, noteText.trim());
-    setNoteText('');
+    await saveAdminNote(clientId, text);
+    setNoteTexts(prev => ({ ...prev, [clientId]: '' }));
     setSavingNote(false);
     loadData();
   };
@@ -359,8 +361,8 @@ export default function AdminView() {
           <div className="space-y-4">
             {filteredClients.map((client, idx) => {
               const isExpanded = expandedClient === client.id;
-              const latestIntake = client.intake_responses
-                ?.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+              const latestIntake = [...(client.intake_responses || [])]
+                .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
               const hasDeepDive = client.intake_responses?.some(r => r.mode === 'deep');
               const answers = latestIntake?.answers || {};
               const clientPayments = payments.filter(p => p.email?.toLowerCase() === client.email?.toLowerCase() && p.status === 'succeeded');
@@ -638,7 +640,7 @@ export default function AdminView() {
 
                           {client.admin_notes?.length > 0 && (
                             <div className="space-y-2 mb-3">
-                              {client.admin_notes
+                              {[...client.admin_notes]
                                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                                 .map(note => (
                                   <div key={note.id} className="bg-white/60 rounded-lg p-3">
@@ -663,15 +665,15 @@ export default function AdminView() {
                           <div className="flex gap-2">
                             <input
                               type="text"
-                              value={expandedClient === client.id ? noteText : ''}
-                              onChange={(e) => setNoteText(e.target.value)}
+                              value={noteTexts[client.id] || ''}
+                              onChange={(e) => setNoteTexts(prev => ({ ...prev, [client.id]: e.target.value }))}
                               onKeyDown={(e) => { if (e.key === 'Enter') handleSaveNote(client.id); }}
                               placeholder="Add a note..."
                               className="flex-1 px-4 py-2 rounded-xl bg-white border border-brand-dark/10 text-sm focus:outline-none focus:border-brand-mid"
                             />
                             <button
                               onClick={() => handleSaveNote(client.id)}
-                              disabled={savingNote || !noteText.trim()}
+                              disabled={savingNote || !(noteTexts[client.id]?.trim())}
                               className="px-4 py-2 rounded-xl bg-brand-dark text-white text-xs font-bold uppercase tracking-wider disabled:opacity-40 hover:bg-brand-deep transition-colors flex items-center gap-1"
                             >
                               <Send size={12} />
