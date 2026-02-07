@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Minus } from 'lucide-react';
+import { useInView } from '../utils/useInView';
 
 interface FAQItemProps {
   question: string;
@@ -36,6 +37,7 @@ const FAQItem = ({ question, answer, isOpen, onClick }: FAQItemProps) => {
 
 export default function FAQ() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+  const { ref: sectionRef, isInView } = useInView();
 
   const faqs = [
     {
@@ -61,9 +63,9 @@ export default function FAQ() {
   ];
 
   return (
-    <section className="py-24 px-6 relative z-10">
-      <div className="max-w-3xl mx-auto">
-        
+    <section ref={sectionRef} className="py-24 px-6 relative z-10">
+      <div className={`max-w-3xl mx-auto transition-all duration-700 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}>
+
         <div className="mb-16">
           <div className="flex items-center gap-4 mb-6">
              <div className="h-px w-8 bg-brand-muted"></div>
