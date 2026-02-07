@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, Component, type ErrorInfo, type ReactNode } from 'react';
 import Hero from './components/Hero';
 import { User } from 'lucide-react';
 
@@ -6,6 +6,42 @@ import { User } from 'lucide-react';
 import type { IntakeResponse } from './utils/diagnosticEngine';
 import type { PreviewResult } from './utils/previewEngine';
 import type { PaymentStatus } from './utils/database';
+
+// ─── Error Boundary for lazy-loaded chunks ─────────────────────────
+// Catches failed dynamic imports (stale hashes after deploy) and auto-reloads
+class ChunkErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    if (error.message?.includes('dynamically imported module') || error.message?.includes('Loading chunk')) {
+      // Stale chunk — reload once to get fresh assets
+      const reloaded = sessionStorage.getItem('afterload_chunk_reload');
+      if (!reloaded) {
+        sessionStorage.setItem('afterload_chunk_reload', '1');
+        window.location.reload();
+      }
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-6">
+          <div className="text-center max-w-sm">
+            <h2 className="font-serif text-2xl text-brand-dark mb-3">Something went wrong</h2>
+            <p className="text-brand-dark/50 text-sm mb-6">A new version may have been deployed. Try refreshing.</p>
+            <button
+              onClick={() => { sessionStorage.removeItem('afterload_chunk_reload'); window.location.reload(); }}
+              className="px-6 py-3 rounded-xl bg-brand-dark text-white text-xs font-bold uppercase tracking-widest hover:bg-brand-deep transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // Lazy-load views that aren't needed on initial page load
 const Intake = lazy(() => import('./components/Intake'));
@@ -64,6 +100,9 @@ export default function App() {
     depositDate: null,
     balanceDate: null,
   });
+
+  // Clear chunk reload flag on successful mount
+  useEffect(() => { sessionStorage.removeItem('afterload_chunk_reload'); }, []);
 
   // Fetch payment status whenever we have an email (lazy-loads database module)
   useEffect(() => {
@@ -331,6 +370,7 @@ export default function App() {
       </header>
 
       <main className="relative z-10 w-full min-h-screen flex flex-col">
+        <ChunkErrorBoundary>
         <Suspense fallback={<div className="min-h-screen bg-brand-bg" />}>
             {activeView === View.HOME && (
               <Hero onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} userEmail={userEmail} />
@@ -372,6 +412,7 @@ export default function App() {
               <AdminView />
             )}
         </Suspense>
+        </ChunkErrorBoundary>
       </main>
     </div>
   );
