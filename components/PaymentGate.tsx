@@ -66,7 +66,7 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
               Business Clarity Report
             </h2>
             <p className="font-lora text-brand-dark/50 max-w-md mx-auto leading-relaxed text-sm">
-              A deep-dive diagnostic built from 25 targeted questions about your operations,
+              A clarity session built from 25 targeted questions about your operations,
               delivered as a comprehensive report within 5–7 business days.
             </p>
           </div>

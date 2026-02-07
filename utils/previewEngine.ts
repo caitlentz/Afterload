@@ -2,7 +2,7 @@ import { IntakeResponse, ConstraintType, determineTrack } from './diagnosticEngi
 
 // ------------------------------------------------------------------
 // PREVIEW ENGINE
-// Generates a meaningful preview from just the initial 7-10 questions.
+// Generates a meaningful preview from just the initial 7-12 questions.
 // This is the FREE report that sells the $1,200 full diagnostic.
 // ------------------------------------------------------------------
 
@@ -38,6 +38,13 @@ export type PreviewResult = {
   lifecycle: LifecycleStage[];
 };
 
+/** Handles doc_state as string or string[] after multi-select upgrade */
+function docStateIncludes(docState: string | string[] | undefined, search: string): boolean {
+  if (!docState) return false;
+  if (Array.isArray(docState)) return docState.some(s => s.toLowerCase().includes(search.toLowerCase()));
+  return docState.toLowerCase().includes(search.toLowerCase());
+}
+
 export function runPreviewDiagnostic(data: IntakeResponse): PreviewResult {
   const track = determineTrack(data.business_type);
   const businessName = data.businessName || 'Your Business';
@@ -52,34 +59,49 @@ export function runPreviewDiagnostic(data: IntakeResponse): PreviewResult {
 
   // TRACK A: Time-Bound
   if (track === 'A') {
-    // Capacity utilization
-    if (data.capacity_utilization?.includes('Overbooked') || data.capacity_utilization?.includes('Completely full')) {
+    // Capacity utilization (handles both old and new option wording)
+    if (data.capacity_utilization?.includes('Overbooked') || data.capacity_utilization?.includes('Fully booked') || data.capacity_utilization?.includes('Completely full')) {
       constraint = 'TIME-BOUND';
-      riskSignals.push('You are at or beyond capacity — growth requires structural change, not harder work.');
+      riskSignals.push('The business is at or beyond capacity — growth requires structural change, not harder work.');
       whatWeKnow.push(`Schedule: ${data.capacity_utilization}`);
     } else if (data.capacity_utilization?.includes('Mostly booked')) {
       constraint = 'TIME-BOUND';
       riskSignals.push('You\'re approaching a ceiling. Current structure has limited room left.');
     }
 
-    // Absence impact
-    if (data.absence_impact?.includes('Everything stops') || data.absence_impact?.includes('Revenue drops')) {
+    // Absence impact (handles both old and new option wording)
+    if (data.absence_impact?.includes('Everything stops') || data.absence_impact?.includes('Everything backs up') || data.absence_impact?.includes('revenue is gone')) {
       founderDependency = 'CRITICAL';
-      founderDependencySignal = `When you're gone: "${data.absence_impact}"`;
-      riskSignals.push('Revenue is directly tied to your physical presence.');
+      founderDependencySignal = `When someone's out: "${data.absence_impact}"`;
+      riskSignals.push('Revenue is directly tied to physical presence — one callout and the money is lost.');
+    } else if (data.absence_impact?.includes('Revenue drops') || data.absence_impact?.includes('displaces future bookings')) {
+      founderDependency = 'HIGH';
+      founderDependencySignal = 'Callouts displace future bookings — rescheduling costs real revenue.';
+      riskSignals.push('Rescheduled appointments displace future bookings, costing the business a full day of revenue.');
     } else if (data.absence_impact?.includes('rescheduled')) {
       founderDependency = 'HIGH';
-      founderDependencySignal = 'Appointments depend on you specifically.';
+      founderDependencySignal = 'Appointments depend on individual schedules.';
     } else {
       founderDependency = 'MODERATE';
-      founderDependencySignal = 'Your team can handle short absences.';
+      founderDependencySignal = 'The team can handle short absences.';
     }
 
-    // Growth blocker
+    // Founder operational role (NEW)
+    if (data.founder_operational_role?.includes('full-time')) {
+      if (founderDependency !== 'CRITICAL') founderDependency = 'HIGH';
+      riskSignals.push('You\'re still doing the core service work full-time. Revenue is tied to your labor.');
+      whatWeKnow.push('Founder role: Full-time service delivery');
+    } else if (data.founder_operational_role?.includes('part-time')) {
+      whatWeKnow.push('Founder role: Part-time service delivery + operations');
+    } else if (data.founder_operational_role?.includes('stepped out')) {
+      whatWeKnow.push('Founder role: Fully operational (not delivering)');
+    }
+
+    // Growth blocker (handles both old and new wording)
     if (data.growth_blocker?.includes('hours in the day')) {
       whatWeKnow.push('Growth blocker: Not enough hours');
       if (constraint === 'UNKNOWN') constraint = 'TIME-BOUND';
-    } else if (data.growth_blocker?.includes('find/train')) {
+    } else if (data.growth_blocker?.includes('find') || data.growth_blocker?.includes('train')) {
       whatWeKnow.push('Growth blocker: Hiring/training challenges');
       riskSignals.push('You know you need people — finding the right ones is the bottleneck.');
     } else if (data.growth_blocker?.includes('systems to scale')) {
@@ -87,13 +109,18 @@ export function runPreviewDiagnostic(data: IntakeResponse): PreviewResult {
       if (constraint === 'UNKNOWN') constraint = 'POLICY-BOUND';
     }
 
-    // Doc state
-    if (data.doc_state?.includes('Head') || data.doc_state?.includes('head')) {
+    // Doc state (updated for multi-select)
+    if (docStateIncludes(data.doc_state, 'head') || docStateIncludes(data.doc_state, 'nothing is written')) {
       riskSignals.push('Your processes live in your head. This means you can\'t be replicated, even if you hire.');
       whatWeKnow.push('Documentation: Tribal knowledge only');
-    } else if (data.doc_state?.includes('Notes')) {
+    } else if (docStateIncludes(data.doc_state, 'Notes') || docStateIncludes(data.doc_state, 'Scattered')) {
       riskSignals.push('Documentation exists but isn\'t centralized — new hires learn by asking, not reading.');
       whatWeKnow.push('Documentation: Fragmented');
+    }
+
+    // Doc usage (NEW for Track A)
+    if (data.doc_usage?.includes('No') || data.doc_usage?.includes('Rarely')) {
+      riskSignals.push('Even where documentation exists, your team doesn\'t use it.');
     }
 
     // Time theft
@@ -156,18 +183,23 @@ export function runPreviewDiagnostic(data: IntakeResponse): PreviewResult {
       whatWeKnow.push('Bottleneck: Quality control');
     }
 
-    // Delegation blocker
-    if (data.delegation_blocker?.includes('Quality trust')) {
+    // Delegation blocker (handles both old terse and new descriptive options)
+    if (data.delegation_blocker?.includes('Quality trust') || data.delegation_blocker?.includes('trust the quality')) {
       riskSignals.push('You don\'t delegate because you don\'t trust the output. The real question is: are standards undocumented, or is the team undertrained?');
-    } else if (data.delegation_blocker?.includes('Faster myself')) {
+    } else if (data.delegation_blocker?.includes('Faster myself') || data.delegation_blocker?.includes('faster to do it myself')) {
       riskSignals.push('"It\'s faster if I do it" is the most expensive sentence in your business.');
-    } else if (data.delegation_blocker?.includes('Client expects me')) {
+    } else if (data.delegation_blocker?.includes('Client expects me') || data.delegation_blocker?.includes('Clients expect me')) {
       riskSignals.push('Client expectation of founder involvement limits what you can hand off.');
     }
 
-    // Doc state
-    if (data.doc_state?.includes('Head') || data.doc_state?.includes('head')) {
+    // Doc state (updated for multi-select)
+    if (docStateIncludes(data.doc_state, 'head') || docStateIncludes(data.doc_state, 'nothing is written')) {
       riskSignals.push('No documented standards means every decision defaults back to you.');
+    }
+
+    // Founder operational role (NEW for context)
+    if (data.founder_operational_role) {
+      whatWeKnow.push(`Founder role: ${data.founder_operational_role}`);
     }
 
     if (constraint === 'UNKNOWN') constraint = 'COGNITIVE-BOUND';
@@ -199,27 +231,48 @@ export function runPreviewDiagnostic(data: IntakeResponse): PreviewResult {
       whatWeKnow.push('Client expectation: Major milestones');
     }
 
-    // Identity attachment
-    if (data.identity_attachment?.includes('I AM the work')) {
+    // Identity attachment (handles both old terse and new descriptive options)
+    if (data.identity_attachment?.includes('I AM the work') || data.identity_attachment?.includes('business is me')) {
       riskSignals.push('Strong identity attachment to delivery. This isn\'t a flaw — but it defines your scaling ceiling.');
-    } else if (data.identity_attachment?.includes('Practitioner')) {
+    } else if (data.identity_attachment?.includes('Practitioner') || data.identity_attachment?.includes('practitioner')) {
       riskSignals.push('You still see yourself as the practitioner. The shift to owner hasn\'t happened yet.');
     }
 
-    // Team capability
-    if (data.team_capability?.includes('No')) {
+    // Team capability (handles both old and new options)
+    if (data.team_capability?.includes('No') || data.team_capability?.includes('can\'t be replicated')) {
       whatWeKnow.push('Team capability gap: Cannot replicate your work');
       riskSignals.push('Your team can\'t do what you do. Until that changes, you are the capacity ceiling.');
-    } else if (data.team_capability?.includes('Maybe years')) {
+    } else if (data.team_capability?.includes('Maybe years') || data.team_capability?.includes('few years')) {
       whatWeKnow.push('Team capability gap: Years from readiness');
-    } else if (data.team_capability?.includes('Yes with training')) {
+    } else if (data.team_capability?.includes('Yes with training') || data.team_capability?.includes('training and documentation')) {
       whatWeKnow.push('Team capability: Ready with investment');
       riskSignals.push('Your team could do this with training — that\'s actually a strong position.');
     }
 
-    // Delegation fear
-    if (data.delegation_fear?.includes('They don\'t need me') || data.delegation_fear?.includes("don't need me")) {
+    // Delegation fear (handles both old and new options)
+    if (data.delegation_fear?.includes('They don\'t need me') || data.delegation_fear?.includes("don't need me") || data.delegation_fear?.includes("won't need me")) {
       riskSignals.push('Fear of becoming irrelevant is holding the business back from growing past you.');
+    }
+
+    // Doc state (NEW for Track C)
+    if (docStateIncludes(data.doc_state, 'head') || docStateIncludes(data.doc_state, 'nothing is written')) {
+      riskSignals.push('No documented processes — your expertise can\'t be transferred without extraction first.');
+      whatWeKnow.push('Documentation: Tribal knowledge only');
+    }
+
+    // Delegation support (NEW for Track C)
+    if (data.has_delegation_support?.includes('No')) {
+      riskSignals.push('No one to delegate to. Every operational task defaults to you.');
+      whatWeKnow.push('Delegation support: None');
+    } else if (data.has_delegation_support?.includes('Sort of')) {
+      whatWeKnow.push('Delegation support: Informal senior employee');
+    } else if (data.has_delegation_support?.includes('Yes')) {
+      whatWeKnow.push('Delegation support: Dedicated manager/ops person');
+    }
+
+    // Founder operational role (NEW for context)
+    if (data.founder_operational_role) {
+      whatWeKnow.push(`Founder role: ${data.founder_operational_role}`);
     }
 
     if (constraint === 'UNKNOWN') constraint = 'TIME-BOUND';
@@ -262,6 +315,17 @@ export function runPreviewDiagnostic(data: IntakeResponse): PreviewResult {
   }
   if (data.team_size) {
     whatWeKnow.push(`Team: ${data.team_size}`);
+  }
+  if (data.years_in_business) {
+    whatWeKnow.push(`Years in business: ${data.years_in_business}`);
+  }
+
+  // Founder responsibilities sprawl (NEW — universal)
+  if (data.founder_responsibilities && Array.isArray(data.founder_responsibilities)) {
+    if (data.founder_responsibilities.length >= 5) {
+      riskSignals.push(`You're personally handling ${data.founder_responsibilities.length} different operational areas. This is a classic founder bottleneck pattern.`);
+    }
+    whatWeKnow.push(`Founder handles: ${data.founder_responsibilities.join(', ')}`);
   }
 
   // --- SUSTAINABILITY HORIZON ---
@@ -311,10 +375,11 @@ function calculateSustainabilityHorizon(
 
   // Track-specific signals
   if (track === 'A') {
-    if (data.capacity_utilization?.includes('Overbooked')) { pressure += 20; factors.push('Overbooked schedule'); }
-    else if (data.capacity_utilization?.includes('Completely full')) { pressure += 15; factors.push('No room in the schedule'); }
-    if (data.absence_impact?.includes('Everything stops')) { pressure += 15; }
-    if (data.growth_blocker?.includes('hours in the day')) { pressure += 10; factors.push('Growth blocked by your hours'); }
+    if (data.capacity_utilization?.includes('Overbooked') || data.capacity_utilization?.includes('can\'t keep up')) { pressure += 20; factors.push('Overbooked schedule'); }
+    else if (data.capacity_utilization?.includes('Fully booked') || data.capacity_utilization?.includes('Completely full')) { pressure += 15; factors.push('No room in the schedule'); }
+    if (data.absence_impact?.includes('Everything stops') || data.absence_impact?.includes('Everything backs up')) { pressure += 15; }
+    if (data.absence_impact?.includes('displaces future bookings')) { pressure += 10; factors.push('Callouts displace future revenue'); }
+    if (data.growth_blocker?.includes('hours in the day')) { pressure += 10; factors.push('Growth blocked by hours'); }
   }
 
   if (track === 'B') {
@@ -327,15 +392,35 @@ function calculateSustainabilityHorizon(
 
   if (track === 'C') {
     if (data.revenue_dependency?.includes('Goes to zero')) { pressure += 20; }
-    if (data.identity_attachment?.includes('I AM the work')) { pressure += 15; factors.push('Deep identity attachment to delivery'); }
-    else if (data.identity_attachment?.includes('Practitioner')) { pressure += 10; }
-    if (data.team_capability?.includes('No')) { pressure += 15; factors.push('Team can\'t replicate your work'); }
-    if (data.delegation_fear?.includes("don't need me") || data.delegation_fear?.includes("They don't need me")) { pressure += 10; }
+    if (data.identity_attachment?.includes('I AM the work') || data.identity_attachment?.includes('business is me')) { pressure += 15; factors.push('Deep identity attachment to delivery'); }
+    else if (data.identity_attachment?.includes('Practitioner') || data.identity_attachment?.includes('practitioner')) { pressure += 10; }
+    if (data.team_capability?.includes('No') || data.team_capability?.includes('can\'t be replicated')) { pressure += 15; factors.push('Team can\'t replicate your work'); }
+    if (data.delegation_fear?.includes("don't need me") || data.delegation_fear?.includes("They don't need me") || data.delegation_fear?.includes("won't need me")) { pressure += 10; }
   }
 
-  // Universal: documentation state
-  if (data.doc_state?.includes('Head') || data.doc_state?.includes('head')) { pressure += 10; factors.push('No documented processes'); }
-  else if (data.doc_state?.includes('Notes')) { pressure += 5; }
+  // Universal: documentation state (updated for multi-select)
+  if (docStateIncludes(data.doc_state, 'head') || docStateIncludes(data.doc_state, 'nothing is written')) { pressure += 10; factors.push('No documented processes'); }
+  else if (docStateIncludes(data.doc_state, 'Notes') || docStateIncludes(data.doc_state, 'Scattered')) { pressure += 5; }
+
+  // Universal: doc usage (NEW)
+  if (data.doc_usage?.includes('No') || data.doc_usage?.includes('Rarely')) {
+    pressure += 5; factors.push('Documentation not being used');
+  }
+
+  // Universal: founder operational role (NEW)
+  if (data.founder_operational_role?.includes('full-time')) {
+    pressure += 10; factors.push('Still doing core service work full-time');
+  }
+
+  // Universal: no delegation support (NEW)
+  if (data.has_delegation_support?.includes('No')) {
+    pressure += 8; factors.push('No manager or operations support');
+  }
+
+  // Universal: founder responsibility sprawl (NEW)
+  if (data.founder_responsibilities && Array.isArray(data.founder_responsibilities) && data.founder_responsibilities.length >= 5) {
+    pressure += 8; factors.push('Wearing too many hats');
+  }
 
   // Clamp to 100
   pressure = Math.min(pressure, 100);
@@ -385,11 +470,10 @@ function calculateLifecycleHeatmap(
 ): LifecycleStage[] {
   const stages: LifecycleStage[] = [];
 
-  // 1. SALES / LEAD GENERATION
-  // We don't ask about sales directly — mark unknown unless we can infer
-  if (data.capacity_utilization?.includes('Struggling')) {
+  // 1. SALES / LEAD GENERATION (handles both old and new option wording)
+  if (data.capacity_utilization?.includes('Struggling') || data.capacity_utilization?.includes('Slow')) {
     stages.push({ id: 'sales', label: 'Sales & Leads', status: 'stressed', signal: 'Demand gap' });
-  } else if (data.capacity_utilization?.includes('Overbooked') || data.capacity_utilization?.includes('Completely full')) {
+  } else if (data.capacity_utilization?.includes('Overbooked') || data.capacity_utilization?.includes('Fully booked') || data.capacity_utilization?.includes('Completely full')) {
     stages.push({ id: 'sales', label: 'Sales & Leads', status: 'healthy', signal: 'Strong demand' });
   } else {
     stages.push({ id: 'sales', label: 'Sales & Leads', status: 'unknown', signal: 'Needs deeper analysis' });
@@ -399,23 +483,25 @@ function calculateLifecycleHeatmap(
   // Infer from doc state + time theft
   const hasOnboardingFriction = data.time_theft
     ? (Array.isArray(data.time_theft) ? data.time_theft : [data.time_theft]).some(
-        (t: string) => t.includes('repetitive') || t.includes('Answering')
+        (t: string) => t.toLowerCase().includes('repetitive') || t.toLowerCase().includes('answering') || t.toLowerCase().includes('same questions')
       )
     : false;
   if (hasOnboardingFriction) {
     stages.push({ id: 'onboarding', label: 'Client Onboarding', status: 'stressed', signal: 'Repetitive questions suggest unclear handoff' });
-  } else if (data.doc_state?.includes('Head') || data.doc_state?.includes('head')) {
+  } else if (docStateIncludes(data.doc_state, 'head') || docStateIncludes(data.doc_state, 'nothing is written')) {
     stages.push({ id: 'onboarding', label: 'Client Onboarding', status: 'stressed', signal: 'Onboarding lives in your head' });
   } else {
     stages.push({ id: 'onboarding', label: 'Client Onboarding', status: 'unknown', signal: 'Needs deeper analysis' });
   }
 
-  // 3. SERVICE DELIVERY
-  if (founderDependency === 'CRITICAL' || (data.absence_impact?.includes('Everything stops'))) {
+  // 3. SERVICE DELIVERY (enhanced with founder_operational_role)
+  if (founderDependency === 'CRITICAL' || data.absence_impact?.includes('Everything stops') || data.absence_impact?.includes('Everything backs up')) {
     stages.push({ id: 'delivery', label: 'Service Delivery', status: 'critical', signal: 'Founder-dependent delivery' });
-  } else if (founderDependency === 'HIGH' || data.absence_impact?.includes('Revenue drops')) {
-    stages.push({ id: 'delivery', label: 'Service Delivery', status: 'stressed', signal: 'Delivery relies heavily on you' });
-  } else if (data.team_capability?.includes('Yes') && !data.team_capability?.includes('training')) {
+  } else if (data.founder_operational_role?.includes('full-time')) {
+    stages.push({ id: 'delivery', label: 'Service Delivery', status: 'critical', signal: 'Founder still delivers full-time' });
+  } else if (founderDependency === 'HIGH' || data.absence_impact?.includes('Revenue drops') || data.absence_impact?.includes('revenue is gone') || data.absence_impact?.includes('displaces future bookings')) {
+    stages.push({ id: 'delivery', label: 'Service Delivery', status: 'stressed', signal: 'Delivery relies heavily on individual availability' });
+  } else if (data.team_capability?.includes('Yes') && !data.team_capability?.includes('training') && !data.team_capability?.includes('documentation')) {
     stages.push({ id: 'delivery', label: 'Service Delivery', status: 'healthy', signal: 'Team can deliver independently' });
   } else {
     stages.push({ id: 'delivery', label: 'Service Delivery', status: 'stressed', signal: 'Partial dependency' });
@@ -430,7 +516,7 @@ function calculateLifecycleHeatmap(
     } else {
       stages.push({ id: 'review', label: 'Review & Approvals', status: 'healthy', signal: 'Manageable review cadence' });
     }
-  } else if (data.delegation_blocker?.includes('Quality trust') || data.delegation_blocker?.includes('Faster myself')) {
+  } else if (data.delegation_blocker?.includes('Quality trust') || data.delegation_blocker?.includes('trust the quality') || data.delegation_blocker?.includes('Faster myself') || data.delegation_blocker?.includes('faster to do it myself')) {
     stages.push({ id: 'review', label: 'Review & Approvals', status: 'stressed', signal: 'Quality control defaults to you' });
   } else {
     stages.push({ id: 'review', label: 'Review & Approvals', status: 'unknown', signal: 'Needs deeper analysis' });
@@ -439,7 +525,7 @@ function calculateLifecycleHeatmap(
   // 5. GROWTH / SCALING
   if (data.growth_blocker?.includes('hours in the day') || data.growth_blocker?.includes('capacity')) {
     stages.push({ id: 'growth', label: 'Growth & Scaling', status: 'critical', signal: 'Hard ceiling on capacity' });
-  } else if (data.growth_blocker?.includes('systems') || data.growth_blocker?.includes('find/train')) {
+  } else if (data.growth_blocker?.includes('systems') || data.growth_blocker?.includes('find') || data.growth_blocker?.includes('train')) {
     stages.push({ id: 'growth', label: 'Growth & Scaling', status: 'stressed', signal: 'Structural barriers to growth' });
   } else if (data.growth_blocker?.includes('Not enough demand')) {
     stages.push({ id: 'growth', label: 'Growth & Scaling', status: 'stressed', signal: 'Demand-side constraint' });
@@ -447,16 +533,14 @@ function calculateLifecycleHeatmap(
     stages.push({ id: 'growth', label: 'Growth & Scaling', status: 'unknown', signal: 'Needs deeper analysis' });
   }
 
-  // 6. DOCUMENTATION & SYSTEMS
-  if (data.doc_state?.includes('Centralized')) {
+  // 6. DOCUMENTATION & SYSTEMS (updated for multi-select)
+  if (docStateIncludes(data.doc_state, 'Centralized')) {
     stages.push({ id: 'systems', label: 'Documentation & Systems', status: 'healthy', signal: 'Centralized documentation' });
-  } else if (data.doc_state?.includes('Handbook') || data.doc_state?.includes('handbook')) {
-    stages.push({ id: 'systems', label: 'Documentation & Systems', status: 'moderate' as any, signal: 'Basic documentation exists' });
-    // fix: moderate isn't a valid status, use 'stressed' as yellow
-    stages[stages.length - 1].status = 'stressed';
-  } else if (data.doc_state?.includes('Notes')) {
+  } else if (docStateIncludes(data.doc_state, 'handbook') || docStateIncludes(data.doc_state, 'training manual')) {
+    stages.push({ id: 'systems', label: 'Documentation & Systems', status: 'stressed', signal: 'Basic documentation exists' });
+  } else if (docStateIncludes(data.doc_state, 'Notes') || docStateIncludes(data.doc_state, 'Scattered')) {
     stages.push({ id: 'systems', label: 'Documentation & Systems', status: 'stressed', signal: 'Fragmented notes' });
-  } else if (data.doc_state?.includes('Head') || data.doc_state?.includes('head')) {
+  } else if (docStateIncludes(data.doc_state, 'head') || docStateIncludes(data.doc_state, 'nothing is written')) {
     stages.push({ id: 'systems', label: 'Documentation & Systems', status: 'critical', signal: 'All tribal knowledge' });
   } else {
     stages.push({ id: 'systems', label: 'Documentation & Systems', status: 'unknown', signal: 'Needs deeper analysis' });

@@ -90,13 +90,13 @@ type PaymentRecord = {
   created_at: string;
 };
 
-type ClientStage = 'new' | 'preview_done' | 'deposit_paid' | 'deep_dive_done' | 'balance_paid' | 'delivered';
+type ClientStage = 'new' | 'preview_done' | 'deposit_paid' | 'clarity_done' | 'balance_paid' | 'delivered';
 
 const STAGE_CONFIG: Record<ClientStage, { label: string; color: string; order: number }> = {
   new:             { label: 'New Lead',      color: 'bg-gray-100 text-gray-600',   order: 0 },
   preview_done:    { label: 'Preview Done',  color: 'bg-blue-100 text-blue-700',   order: 1 },
   deposit_paid:    { label: 'Deposit Paid',  color: 'bg-emerald-100 text-emerald-700', order: 2 },
-  deep_dive_done:  { label: 'Deep Dive Done', color: 'bg-purple-100 text-purple-700', order: 3 },
+  clarity_done:    { label: 'Clarity Done',    color: 'bg-purple-100 text-purple-700', order: 3 },
   balance_paid:    { label: 'Balance Paid',  color: 'bg-amber-100 text-amber-700', order: 4 },
   delivered:       { label: 'Delivered',     color: 'bg-green-100 text-green-700',  order: 5 },
 };
@@ -105,12 +105,12 @@ function getClientStage(client: any, payments: PaymentRecord[]): ClientStage {
   const clientPayments = payments.filter(p => p.email?.toLowerCase() === client.email?.toLowerCase() && p.status === 'succeeded');
   const hasDeposit = clientPayments.some(p => p.payment_type === 'deposit');
   const hasBalance = clientPayments.some(p => p.payment_type === 'balance');
-  const hasDeepDive = client.intake_responses?.some((r: any) => r.mode === 'deep');
+  const hasClaritySession = client.intake_responses?.some((r: any) => r.mode === 'deep');
   const isDelivered = client.admin_notes?.some((n: any) => n.note?.includes('[delivered]'));
 
   if (isDelivered) return 'delivered';
   if (hasBalance) return 'balance_paid';
-  if (hasDeepDive) return 'deep_dive_done';
+  if (hasClaritySession) return 'clarity_done';
   if (hasDeposit) return 'deposit_paid';
   if (client.intake_responses?.length > 0) return 'preview_done';
   return 'new';
@@ -244,7 +244,7 @@ export default function AdminView() {
       depositsCollected: payments.filter(p => p.payment_type === 'deposit' && p.status === 'succeeded').length,
       balancesCollected: payments.filter(p => p.payment_type === 'balance' && p.status === 'succeeded').length,
       delivered: allWithStages.filter(c => c.stage === 'delivered').length,
-      awaitingDeepDive: allWithStages.filter(c => c.stage === 'deposit_paid').length,
+      awaitingClarity: allWithStages.filter(c => c.stage === 'deposit_paid').length,
       totalRevenue,
     };
   }, [clients, payments]);
@@ -290,8 +290,8 @@ export default function AdminView() {
             <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mt-1">Deposits</div>
           </div>
           <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 p-4 text-center">
-            <div className="text-2xl font-serif text-amber-600">{stats.awaitingDeepDive}</div>
-            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mt-1">Awaiting Deep Dive</div>
+            <div className="text-2xl font-serif text-amber-600">{stats.awaitingClarity}</div>
+            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mt-1">Awaiting Clarity Session</div>
           </div>
           <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 p-4 text-center">
             <div className="text-2xl font-serif text-green-600">{stats.delivered}</div>
@@ -331,7 +331,7 @@ export default function AdminView() {
               <option value="new">New Lead</option>
               <option value="preview_done">Preview Done</option>
               <option value="deposit_paid">Deposit Paid</option>
-              <option value="deep_dive_done">Deep Dive Done</option>
+              <option value="clarity_done">Clarity Done</option>
               <option value="balance_paid">Balance Paid</option>
               <option value="delivered">Delivered</option>
             </select>
@@ -363,15 +363,15 @@ export default function AdminView() {
               const isExpanded = expandedClient === client.id;
               const latestIntake = [...(client.intake_responses || [])]
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-              const hasDeepDive = client.intake_responses?.some(r => r.mode === 'deep');
+              const hasClaritySession = client.intake_responses?.some(r => r.mode === 'deep');
               const answers = latestIntake?.answers || {};
               const clientPayments = payments.filter(p => p.email?.toLowerCase() === client.email?.toLowerCase() && p.status === 'succeeded');
               const stage = client.stage;
               const stageInfo = STAGE_CONFIG[stage];
 
-              // Run full diagnostic if we have deep dive data
+              // Run full diagnostic if we have clarity session data
               let fullReport = null;
-              if (hasDeepDive && isExpanded) {
+              if (hasClaritySession && isExpanded) {
                 const deepIntake = client.intake_responses.find(r => r.mode === 'deep');
                 if (deepIntake) {
                   try {
@@ -460,7 +460,7 @@ export default function AdminView() {
                         )}
 
                         {/* Action buttons */}
-                        {stage !== 'delivered' && (stage === 'balance_paid' || stage === 'deep_dive_done') && (
+                        {stage !== 'delivered' && (stage === 'balance_paid' || stage === 'clarity_done') && (
                           <button
                             onClick={() => handleMarkDelivered(client.id)}
                             className="w-full py-3 rounded-xl bg-green-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-green-700 transition-colors flex items-center justify-center gap-2"

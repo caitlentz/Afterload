@@ -64,6 +64,16 @@ const ANSWER_LABELS: Record<string, string> = {
   delegation_fear: 'Delegation Fear',
   identity_attachment: 'Identity Attachment',
   team_capability: 'Team Capability',
+  years_in_business: 'Years in Business',
+  founder_operational_role: 'Founder Role',
+  founder_responsibilities: 'Founder Handles',
+  has_delegation_support: 'Delegation Support',
+  pricing_confidence: 'Pricing Confidence',
+  pricing_last_raised: 'Last Price Increase',
+  revenue_range: 'Revenue Range',
+  profitability_gut_check: 'Profitability',
+  expense_awareness: 'Expense Awareness',
+  average_service_rate: 'Service Rate',
 };
 
 // Keys to skip showing (they're displayed elsewhere or are meta)
@@ -83,10 +93,10 @@ function getContextMessage(stage: string, firstName: string): string {
     case 'preview_ready':
       return "We found some things. Take a look when you're ready — no rush.";
     case 'deposit_paid':
-      return "Deposit received — you're locked in. Time for the deep dive.";
+      return "Deposit received — you're locked in. Time for the clarity session.";
     case 'deep_complete':
     case 'awaiting_balance':
-      return "Your deep dive is submitted. We're building your report now.";
+      return "Your clarity session is submitted. We're building your report now.";
     case 'fully_paid':
       return "Everything is locked in. Your report is on its way.";
     default:
@@ -131,7 +141,7 @@ export default function Dashboard({
   const stages = [
     { id: 'fresh', label: 'Initial Intake', icon: FileText },
     { id: 'preview_ready', label: 'Preview Report', icon: Activity },
-    { id: 'deposit_paid', label: 'Deep Dive', icon: Zap },
+    { id: 'deposit_paid', label: 'Clarity Session', icon: Zap },
     { id: 'awaiting_balance', label: 'Full Report', icon: Shield },
   ];
 
@@ -419,7 +429,7 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* STAGE: Deposit paid — ready for deep dive questions */}
+          {/* STAGE: Deposit paid — ready for clarity session questions */}
           {stage === 'deposit_paid' && (
             <div className="space-y-4">
               {/* Payment confirmation */}
@@ -438,7 +448,7 @@ export default function Dashboard({
                 </div>
               </div>
 
-              {/* Deep dive CTA */}
+              {/* Clarity session CTA */}
               <button
                 onClick={onResumeIntake}
                 className="w-full text-left bg-brand-dark text-white p-8 md:p-10 rounded-[2rem] shadow-lg hover:shadow-xl transition-all group relative overflow-hidden"
@@ -451,14 +461,14 @@ export default function Dashboard({
                     </span>
                   </div>
                   <h2 className="font-serif text-2xl md:text-3xl text-white mb-2">
-                    Start Your Deep Dive
+                    Start Your Clarity Session
                   </h2>
                   <p className="text-white/60 text-sm mb-6 max-w-md font-lora">
                     25 targeted questions about your operations. This is where we find the
                     things the surface-level scan can't see.
                   </p>
                   <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/70 group-hover:text-white group-hover:gap-3 transition-all">
-                    Begin Deep Dive <ArrowRight size={14} />
+                    Begin Clarity Session <ArrowRight size={14} />
                   </div>
                 </div>
               </button>
@@ -481,7 +491,7 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* STAGE: Deep dive complete, awaiting balance payment */}
+          {/* STAGE: Clarity session complete, awaiting balance payment */}
           {stage === 'awaiting_balance' && (
             <div className="space-y-4">
               <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm">
@@ -490,7 +500,7 @@ export default function Dashboard({
                     <CheckCircle size={20} />
                   </div>
                   <div>
-                    <h2 className="font-serif text-xl text-brand-dark">Deep dive submitted.</h2>
+                    <h2 className="font-serif text-xl text-brand-dark">Clarity session submitted.</h2>
                     <p className="text-brand-dark/40 text-xs">We're building your report now.</p>
                   </div>
                 </div>

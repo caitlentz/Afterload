@@ -60,7 +60,7 @@ enum View {
   HOME = 'HOME',
   DIAGNOSTIC_PREVIEW = 'DIAGNOSTIC_PREVIEW',
   PAYMENT = 'PAYMENT',
-  DEEP_INTAKE = 'DEEP_INTAKE',
+  CLARITY_SESSION = 'CLARITY_SESSION',
   SUCCESS = 'SUCCESS',
   LOGIN = 'LOGIN',
   DASHBOARD = 'DASHBOARD',
@@ -363,7 +363,7 @@ export default function App() {
                    <div className="px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase bg-brand-dark text-white shadow-sm flex items-center gap-2">
                      {activeView === View.DIAGNOSTIC_PREVIEW && "Preview"}
                      {activeView === View.PAYMENT && "Secure Checkout"}
-                     {activeView === View.DEEP_INTAKE && "Deep Dive"}
+                     {activeView === View.CLARITY_SESSION && "Clarity Session"}
                      {activeView === View.SUCCESS && "Confirmed"}
                      {activeView === View.LOGIN && "Member Access"}
                    </div>
@@ -387,7 +387,7 @@ export default function App() {
                   paymentStatus={paymentStatus}
                   onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
                   onDiagnosticComplete={handleInitialIntakeComplete}
-                  onResumeIntake={() => navigate(View.DEEP_INTAKE)}
+                  onResumeIntake={() => navigate(View.CLARITY_SESSION)}
                   onStartPayment={() => navigate(View.PAYMENT)}
                   onEditAnswers={handleEditAnswers}
                   onResetDiagnostic={handleResetDiagnostic}
@@ -402,7 +402,7 @@ export default function App() {
             {activeView === View.PAYMENT && (
               <PaymentGate onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
             )}
-            {activeView === View.DEEP_INTAKE && (
+            {activeView === View.CLARITY_SESSION && (
               <Intake mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
             )}
             {activeView === View.SUCCESS && (

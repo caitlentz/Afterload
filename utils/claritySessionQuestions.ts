@@ -1,4 +1,4 @@
-export type DeepQuestion = {
+export type ClarityQuestion = {
   id: string;
   module: string;
   text: string;
@@ -15,7 +15,7 @@ export type DeepQuestion = {
   selectAll?: boolean;
 };
 
-export const DEEP_DIVE_QUESTIONS: DeepQuestion[] = [
+export const CLARITY_SESSION_QUESTIONS: ClarityQuestion[] = [
   // ==========================================
   // SECTION 1: UNIVERSAL QUESTIONS
   // ==========================================
@@ -85,46 +85,93 @@ export const DEEP_DIVE_QUESTIONS: DeepQuestion[] = [
     ]
   },
 
-  // MODULE: ANNUAL WEALTH TRANSFER
+  // MODULE: FINANCIAL HEALTH
+  {
+    id: 'revenue_range',
+    module: 'Financial Health',
+    text: "What's your approximate annual revenue?",
+    helperText: "A rough range is fine — this helps us understand scale, not judge.",
+    type: 'single',
+    tracks: ['UNIVERSAL'],
+    options: ['Under $100k', '$100k - $250k', '$250k - $500k', '$500k - $1M', 'Over $1M']
+  },
+  {
+    id: 'profitability_gut_check',
+    module: 'Financial Health',
+    text: 'After all expenses (payroll, rent, supplies, software, etc.), would you say the business is:',
+    type: 'single',
+    tracks: ['UNIVERSAL'],
+    options: [
+      'Comfortably profitable — healthy margins',
+      'Breaking even or slightly profitable',
+      'Profitable on paper, but cash is always tight',
+      'Losing money or barely surviving'
+    ]
+  },
+  {
+    id: 'pricing_confidence',
+    module: 'Financial Health',
+    text: 'How confident are you that your pricing covers all your costs and pays you fairly?',
+    helperText: "Think about overhead, supplies, payroll, rent — not just what's left in the bank.",
+    type: 'single',
+    tracks: ['UNIVERSAL'],
+    options: [
+      "Very confident — I've done the math and I know my margins",
+      "Somewhat confident — I think it's right but haven't checked recently",
+      'Not sure — I set prices based on what competitors charge',
+      "Not confident — I suspect I'm undercharging but I'm afraid to raise prices"
+    ]
+  },
+  {
+    id: 'pricing_last_raised',
+    module: 'Financial Health',
+    text: 'When did you last raise your prices?',
+    type: 'single',
+    tracks: ['UNIVERSAL'],
+    options: [
+      'Within the last 6 months',
+      '6-12 months ago',
+      '1-2 years ago',
+      'Over 2 years ago (or never)'
+    ]
+  },
+  {
+    id: 'expense_awareness',
+    module: 'Financial Health',
+    text: 'How well do you know your monthly operating expenses?',
+    type: 'single',
+    tracks: ['UNIVERSAL'],
+    options: [
+      'I track them closely and know the number',
+      'I have a rough idea',
+      'I know the big ones but not the total',
+      "Honestly, I'm not sure"
+    ]
+  },
+  {
+    id: 'average_service_rate',
+    module: 'Financial Health',
+    text: "What's the average rate your business charges per hour or per service?",
+    helperText: "A rough average is fine — this helps us estimate operational costs.",
+    type: 'single',
+    tracks: ['UNIVERSAL'],
+    options: ['Under $50/hr', '$50 - $100/hr', '$100 - $150/hr', '$150 - $250/hr', '$250+/hr']
+  },
   {
     id: 'low_value_hours_audit',
-    module: 'Annual Wealth Transfer',
+    module: 'Financial Health',
     text: 'Review your last week. How many hours were spent on tasks that could be done by an administrative assistant (e.g., scheduling, invoicing, formatting documents)?',
     type: 'single',
     tracks: ['UNIVERSAL'],
-    options: ['0', '1-5 hours', '6-10 hours', '10+ hours'] 
-  },
-  {
-    id: 'admin_rate_estimation',
-    module: 'Annual Wealth Transfer',
-    text: 'What would you estimate as the hourly cost to hire someone to handle these tasks?',
-    type: 'dollar',
-    tracks: ['UNIVERSAL'],
-    dependsOn: {
-      questionId: 'low_value_hours_audit',
-      requiredValue: ['1-5 hours', '6-10 hours', '10+ hours']
-    },
-    placeholder: '$ per hour'
+    options: ['0', '1-5 hours', '6-10 hours', '10+ hours']
   },
   {
     id: 'revenue_leakage_estimator',
-    module: 'Annual Wealth Transfer',
+    module: 'Financial Health',
     text: 'Do you believe you lost revenue this year specifically due to operational delays (e.g., slow proposal turnaround, missed renewals, client churn from service delays)?',
     type: 'single',
     tracks: ['UNIVERSAL'],
     options: ['Yes', 'No']
-  },
-  {
-    id: 'revenue_leakage_quantification',
-    module: 'Annual Wealth Transfer',
-    text: 'Estimate the total value of those lost opportunities:',
-    type: 'dollar',
-    tracks: ['UNIVERSAL'],
-    placeholder: '$',
-    dependsOn: {
-      questionId: 'revenue_leakage_estimator',
-      requiredValue: ['Yes']
-    }
   },
 
   // MODULE: PROCESS HEATMAP
