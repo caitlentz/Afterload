@@ -3,33 +3,44 @@
 -- Run this in Supabase SQL Editor (Dashboard → SQL → New Query)
 --
 -- This patch:
---   1. Drops the old auth-only insert policies
---   2. Adds anonymous insert policies (so landing-page intake works)
+--   1. Drops the old auth-only policies (insert, select, update)
+--   2. Adds open policies so anonymous intake saves work
 --   3. Creates admin RPC functions (so admin dashboard can read all data)
 -- ============================================================
 
--- ─── Step 1: Drop old auth-only insert policies ────────────────────
+-- ─── Step 1: Drop all old auth-only policies ───────────────────────
 drop policy if exists "Users can insert own client record" on public.clients;
+drop policy if exists "Users can read own client record" on public.clients;
+drop policy if exists "Users can update own client record" on public.clients;
 drop policy if exists "Users can insert own intake responses" on public.intake_responses;
+drop policy if exists "Users can read own intake responses" on public.intake_responses;
 drop policy if exists "Users can insert own diagnostic results" on public.diagnostic_results;
+drop policy if exists "Users can read own diagnostic results" on public.diagnostic_results;
 
--- ─── Step 2: Add anonymous + authenticated insert policies ─────────
--- The landing-page intake runs BEFORE the user logs in, so we need
--- to allow unauthenticated (anon-key) inserts. This is safe because:
---   • Inserts only — no read, update, or delete for anon
---   • The data is the user's own intake answers
---   • Read access stays restricted to authenticated users matching their email
+-- ─── Step 2: Add open policies for client-facing tables ────────────
+-- The landing-page intake runs BEFORE the user logs in, and the
+-- Supabase JS client uses upsert (INSERT + ON CONFLICT UPDATE)
+-- followed by .select('id'). All three operations need open policies.
+
+-- clients: full anonymous access (for upsert + select)
 create policy "Anyone can insert client record"
-  on public.clients for insert
-  with check (true);
+  on public.clients for insert with check (true);
+create policy "Anyone can select client record"
+  on public.clients for select using (true);
+create policy "Anyone can update client record"
+  on public.clients for update using (true);
 
+-- intake_responses: anonymous insert + select
 create policy "Anyone can insert intake response"
-  on public.intake_responses for insert
-  with check (true);
+  on public.intake_responses for insert with check (true);
+create policy "Anyone can select intake responses"
+  on public.intake_responses for select using (true);
 
+-- diagnostic_results: anonymous insert + select
 create policy "Anyone can insert diagnostic result"
-  on public.diagnostic_results for insert
-  with check (true);
+  on public.diagnostic_results for insert with check (true);
+create policy "Anyone can select diagnostic results"
+  on public.diagnostic_results for select using (true);
 
 -- ─── Step 3: Admin RPC functions ───────────────────────────────────
 -- These run as SECURITY DEFINER (bypasses RLS, like service role).
@@ -93,6 +104,6 @@ end;
 $$;
 
 -- ============================================================
--- DONE! You should see "Success. No rows returned." for each statement.
+-- DONE! You should see "Success. No rows returned."
 -- Test by refreshing the site and completing the intake form.
 -- ============================================================

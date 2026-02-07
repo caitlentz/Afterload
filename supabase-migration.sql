@@ -62,41 +62,36 @@ alter table public.intake_responses enable row level security;
 alter table public.diagnostic_results enable row level security;
 alter table public.admin_notes enable row level security;
 
--- ─── AUTHENTICATED user policies ────────────────────────────────────
--- Logged-in users can read/update their own rows (email must match JWT)
-create policy "Users can read own client record"
-  on public.clients for select
-  using (email = auth.jwt() ->> 'email');
+-- ─── OPEN policies for client-facing tables ─────────────────────────
+-- The landing-page intake runs BEFORE the user logs in, so all
+-- client-facing tables allow anonymous access for INSERT, SELECT,
+-- and UPDATE. This is required because:
+--   • The Supabase JS client uses upsert (INSERT + ON CONFLICT UPDATE)
+--   • After insert, the code does .select('id') to get the new row's ID
+--   • Admin access is handled via SECURITY DEFINER RPCs (see below)
+--
+-- Security note: admin_notes has NO public policies (service role only).
+-- The payments table has its own auth-restricted SELECT policy.
 
-create policy "Users can update own client record"
-  on public.clients for update
-  using (email = auth.jwt() ->> 'email');
-
-create policy "Users can read own intake responses"
-  on public.intake_responses for select
-  using (email = auth.jwt() ->> 'email');
-
-create policy "Users can read own diagnostic results"
-  on public.diagnostic_results for select
-  using (email = auth.jwt() ->> 'email');
-
--- ─── ANONYMOUS + AUTHENTICATED insert policies ─────────────────────
--- The landing-page intake runs BEFORE the user logs in, so we need
--- to allow unauthenticated (anon-key) inserts. This is safe because:
---   • Inserts only — no read, update, or delete for anon
---   • The data is the user's own intake answers (not sensitive to others)
---   • Read access stays restricted to authenticated users matching their email
+-- clients: full anonymous access (for upsert + select)
 create policy "Anyone can insert client record"
-  on public.clients for insert
-  with check (true);
+  on public.clients for insert with check (true);
+create policy "Anyone can select client record"
+  on public.clients for select using (true);
+create policy "Anyone can update client record"
+  on public.clients for update using (true);
 
+-- intake_responses: anonymous insert + select
 create policy "Anyone can insert intake response"
-  on public.intake_responses for insert
-  with check (true);
+  on public.intake_responses for insert with check (true);
+create policy "Anyone can select intake responses"
+  on public.intake_responses for select using (true);
 
+-- diagnostic_results: anonymous insert + select
 create policy "Anyone can insert diagnostic result"
-  on public.diagnostic_results for insert
-  with check (true);
+  on public.diagnostic_results for insert with check (true);
+create policy "Anyone can select diagnostic results"
+  on public.diagnostic_results for select using (true);
 
 -- ─── ADMIN notes ────────────────────────────────────────────────────
 -- admin_notes: only accessible via service role or the admin RPC below.
