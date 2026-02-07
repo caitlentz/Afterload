@@ -27,6 +27,7 @@ interface DashboardProps {
   diagnosticResult: DiagnosticResult | null;
   paymentStatus: PaymentStatus;
   onViewReport: () => void;
+  onStartInitialIntake: () => void;
   onResumeIntake: () => void;
   onStartPayment: () => void;
   onEditAnswers: () => void;
@@ -97,6 +98,7 @@ export default function Dashboard({
   diagnosticResult,
   paymentStatus,
   onViewReport,
+  onStartInitialIntake,
   onResumeIntake,
   onStartPayment,
   onEditAnswers,
@@ -353,7 +355,7 @@ export default function Dashboard({
           {/* STAGE: Fresh — No intake yet */}
           {stage === 'fresh' && (
             <button
-              onClick={onResumeIntake}
+              onClick={onStartInitialIntake}
               className="w-full text-left bg-sage-300/15 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] border border-white/80 shadow-[0_2px_8px_-3px_rgba(36,14,56,0.15)] hover:shadow-lg transition-all group relative overflow-hidden"
             >
               <div className="relative z-10">

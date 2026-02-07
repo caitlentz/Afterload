@@ -13,6 +13,7 @@ const Footer = lazy(() => import('./Footer'));
 interface HeroProps {
   onDiagnosticComplete: (answers: IntakeResponse) => void;
   onLoginClick: () => void;
+  userEmail?: string | null;
   key?: React.Key;
 }
 
@@ -32,7 +33,7 @@ function SectionPlaceholder() {
   );
 }
 
-export default function Hero({ onDiagnosticComplete, onLoginClick }: HeroProps) {
+export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: HeroProps) {
   const handleScrollToIntake = () => {
     const intakeSection = document.getElementById('intake');
     if (intakeSection) {
@@ -161,7 +162,7 @@ export default function Hero({ onDiagnosticComplete, onLoginClick }: HeroProps) 
       </Suspense>
 
       <Suspense fallback={<div className="min-h-[60vh]" />}>
-        <Intake onComplete={onDiagnosticComplete} />
+        <Intake onComplete={onDiagnosticComplete} userEmail={userEmail} />
       </Suspense>
 
       <Suspense fallback={null}>

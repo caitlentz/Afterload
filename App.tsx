@@ -136,34 +136,34 @@ export default function App() {
 
     if (params.get('success') === 'true' || params.get('resume') === 'true') {
         window.history.replaceState({}, '', window.location.pathname);
-        // If logged in, go to dashboard; otherwise show success screen
-        if (userEmail) {
-          setCurrentView(View.DASHBOARD);
-        } else {
-          setCurrentView(View.SUCCESS);
-        }
+        // Always go to Dashboard — auth will resolve and populate userEmail.
+        // The Dashboard renders conditionally on userEmail, and the auth listener
+        // will set it once loaded. If they're truly not logged in, the auth check
+        // in effect #2 will handle it.
+        setCurrentView(View.DASHBOARD);
         returnedFromStripe = true;
     }
     // Detect return from Stripe Buy Button (redirects to root with no params)
-    // If we flagged a payment as pending and user lands back on the site, route appropriately
     if (sessionStorage.getItem('afterload_payment_pending') === 'true') {
         sessionStorage.removeItem('afterload_payment_pending');
-        if (userEmail) {
-          setCurrentView(View.DASHBOARD);
-        } else {
-          setCurrentView(View.SUCCESS);
-        }
+        setCurrentView(View.DASHBOARD);
         returnedFromStripe = true;
     }
 
-    // If returning from Stripe, re-fetch payment status (webhook may have already fired)
-    if (returnedFromStripe && userEmail) {
-      // Small delay to give webhook time to process
-      setTimeout(() => {
-        import('./utils/database').then(({ getPaymentStatus }) =>
-          getPaymentStatus(userEmail).then(setPaymentStatus)
-        );
-      }, 2000);
+    // If returning from Stripe, re-fetch payment status after a delay (webhook may still be processing)
+    if (returnedFromStripe) {
+      const fetchPayment = () => {
+        const email = userEmail || localStorage.getItem('afterload_dev_email');
+        if (email) {
+          import('./utils/database').then(({ getPaymentStatus }) =>
+            getPaymentStatus(email).then(setPaymentStatus)
+          );
+        }
+      };
+      // Fetch immediately, then again after webhook has time to process
+      fetchPayment();
+      setTimeout(fetchPayment, 3000);
+      setTimeout(fetchPayment, 8000);
     }
 
     // Secret admin route: ?admin=true
@@ -333,7 +333,7 @@ export default function App() {
       <main className="relative z-10 w-full min-h-screen flex flex-col">
         <Suspense fallback={<div className="min-h-screen bg-brand-bg" />}>
             {activeView === View.HOME && (
-              <Hero onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
+              <Hero onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} userEmail={userEmail} />
             )}
 
             {activeView === View.DASHBOARD && userEmail && (
@@ -343,6 +343,7 @@ export default function App() {
                   diagnosticResult={null}
                   paymentStatus={paymentStatus}
                   onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
+                  onStartInitialIntake={() => navigate(View.HOME)}
                   onResumeIntake={() => navigate(View.DEEP_INTAKE)}
                   onStartPayment={() => navigate(View.PAYMENT)}
                   onEditAnswers={handleEditAnswers}

@@ -24,6 +24,7 @@ interface IntakeProps {
   onComplete: (answers: any) => void;
   mode?: 'initial' | 'deep';
   initialDataMissing?: boolean;
+  userEmail?: string | null;
   key?: React.Key;
 }
 
@@ -71,11 +72,11 @@ function determineDeepDiveTrack(answer: string | undefined): 'A' | 'B' | 'C' {
 }
 
 
-export default function Intake({ onComplete, mode = 'initial', initialDataMissing = false }: IntakeProps) {
+export default function Intake({ onComplete, mode = 'initial', initialDataMissing = false, userEmail }: IntakeProps) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [direction, setDirection] = useState(1);
-  const [contactForm, setContactForm] = useState({ firstName: '', email: '', businessName: '', website: '', specificType: '' });
+  const [contactForm, setContactForm] = useState({ firstName: '', email: userEmail || '', businessName: '', website: '', specificType: '' });
   const [initialBusinessType, setInitialBusinessType] = useState<BusinessType>(null);
   const [isRoutingPhase, setIsRoutingPhase] = useState(true);
   
@@ -233,7 +234,7 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
 
   const canProceed = () => {
     if (!currentQ) return false;
-    if (currentQ.type === 'form') return mode === 'initial' ? (contactForm.firstName && contactForm.email) : true;
+    if (currentQ.type === 'form') return mode === 'initial' ? (contactForm.firstName && (contactForm.email || userEmail)) : true;
     const ans = answers[currentQ.id];
     if (currentQ.type === 'multi') return ans && ans.length > 0;
     if (currentQ.type === 'text' || currentQ.type === 'dollar') return true; 
@@ -269,7 +270,7 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
           case 'text': return <textarea value={answers[currentQ.id] || ''} onChange={(e) => handleTextChange(e)} placeholder={currentQ.placeholder} className="w-full h-40 p-5 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich focus:ring-1 focus:ring-brand-rich outline-none resize-none font-lora text-lg placeholder:text-brand-dark/30" />;
           case 'dollar': return <input type="text" value={answers[currentQ.id] || ''} onChange={(e) => handleTextChange(e)} placeholder={currentQ.placeholder} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg text-center" />;
           case 'form':
-              if (mode === 'initial') return (<div className="space-y-4"> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">First Name</label> <input type="text" value={contactForm.firstName} onChange={(e) => handleContactChange('firstName', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="Jane" /> </div> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Email</label> <input type="email" value={contactForm.email} onChange={(e) => handleContactChange('email', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="jane@company.com" /> </div> </div> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Business Name</label> <input type="text" value={contactForm.businessName} onChange={(e) => handleContactChange('businessName', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="Acme Inc." /> </div> </div>);
+              if (mode === 'initial') return (<div className="space-y-4"> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">First Name</label> <input type="text" value={contactForm.firstName} onChange={(e) => handleContactChange('firstName', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="Jane" /> </div> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Email</label> {userEmail ? (<div className="w-full p-4 rounded-xl bg-brand-dark/5 border border-brand-dark/10 font-serif text-lg text-brand-dark/60">{userEmail}</div>) : (<input type="email" value={contactForm.email} onChange={(e) => handleContactChange('email', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="jane@company.com" />)} </div> </div> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Business Name</label> <input type="text" value={contactForm.businessName} onChange={(e) => handleContactChange('businessName', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="Acme Inc." /> </div> </div>);
               if (currentQ.id === 'superpower_audit') return (<div className="space-y-4"> <input type="text" value={answers.superpower_1 || ''} onChange={(e) => handleTextChange(e, 'superpower_1')} placeholder="Skill 1" className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" /> <input type="text" value={answers.superpower_2 || ''} onChange={(e) => handleTextChange(e, 'superpower_2')} placeholder="Skill 2" className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" /> </div>);
           default: return null;
       }
