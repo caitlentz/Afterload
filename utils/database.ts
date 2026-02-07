@@ -144,6 +144,36 @@ export interface PaymentStatus {
   balanceDate: string | null;
 }
 
+// ------------------------------------------------------------------
+// FETCH ALL PAYMENTS (for admin view)
+// Returns all payment records with email, type, status, amounts
+// ------------------------------------------------------------------
+export async function fetchAllPayments() {
+  const { data, error } = await supabase
+    .from('payments')
+    .select('id, email, payment_type, amount_cents, status, created_at, stripe_checkout_session_id')
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('fetchAllPayments error:', error);
+    return [];
+  }
+  return data || [];
+}
+
+// ------------------------------------------------------------------
+// SAVE ADMIN NOTE WITH TAG
+// Saves a note with an optional tag (e.g. 'delivered', 'status', 'note')
+// ------------------------------------------------------------------
+export async function saveAdminTaggedNote(clientId: string, note: string, tag: string = 'note') {
+  const { error } = await supabase
+    .from('admin_notes')
+    .insert({ client_id: clientId, note: `[${tag}] ${note}` });
+
+  if (error) console.error('saveAdminTaggedNote error:', error);
+  return !error;
+}
+
 export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
   const result: PaymentStatus = {
     depositPaid: false,
