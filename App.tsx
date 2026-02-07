@@ -343,7 +343,7 @@ export default function App() {
                   diagnosticResult={null}
                   paymentStatus={paymentStatus}
                   onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
-                  onStartInitialIntake={() => navigate(View.HOME)}
+                  onDiagnosticComplete={handleInitialIntakeComplete}
                   onResumeIntake={() => navigate(View.DEEP_INTAKE)}
                   onStartPayment={() => navigate(View.PAYMENT)}
                   onEditAnswers={handleEditAnswers}

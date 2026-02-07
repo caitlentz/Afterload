@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import {
   ArrowRight,
   LogOut,
@@ -21,13 +21,15 @@ import {
 import { IntakeResponse, DiagnosticResult } from '../utils/diagnosticEngine';
 import { PaymentStatus } from '../utils/database';
 
+const Intake = lazy(() => import('./Intake'));
+
 interface DashboardProps {
   userEmail: string;
   intakeData: IntakeResponse | null;
   diagnosticResult: DiagnosticResult | null;
   paymentStatus: PaymentStatus;
   onViewReport: () => void;
-  onStartInitialIntake: () => void;
+  onDiagnosticComplete: (answers: IntakeResponse) => void;
   onResumeIntake: () => void;
   onStartPayment: () => void;
   onEditAnswers: () => void;
@@ -98,7 +100,7 @@ export default function Dashboard({
   diagnosticResult,
   paymentStatus,
   onViewReport,
-  onStartInitialIntake,
+  onDiagnosticComplete,
   onResumeIntake,
   onStartPayment,
   onEditAnswers,
@@ -352,31 +354,19 @@ export default function Dashboard({
         <div
           className="mb-8 animate-[fadeInUp_0.6s_ease-out_0.2s_both]"
         >
-          {/* STAGE: Fresh — No intake yet */}
+          {/* STAGE: Fresh — Inline intake questions */}
           {stage === 'fresh' && (
-            <button
-              onClick={onStartInitialIntake}
-              className="w-full text-left bg-sage-300/15 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] border border-white/80 shadow-[0_2px_8px_-3px_rgba(36,14,56,0.15)] hover:shadow-lg transition-all group relative overflow-hidden"
-            >
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles size={16} className="text-brand-mid" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-mid">
-                    Ready When You Are
-                  </span>
-                </div>
-                <h2 className="font-serif text-2xl md:text-3xl text-brand-dark mb-2">
-                  Start Your Diagnostic
-                </h2>
-                <p className="text-brand-dark/50 text-sm mb-6 max-w-md font-lora">
-                  7 quick questions. Multiple choice. No essays, no overthinking.
-                  We just need enough to see the shape of the problem.
-                </p>
-                <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-dark/70 group-hover:text-brand-dark group-hover:gap-3 transition-all">
-                  Let's Go <ArrowRight size={14} />
-                </div>
+            <Suspense fallback={
+              <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] border border-white/80 animate-pulse">
+                <div className="h-8 w-48 bg-brand-dark/5 rounded mb-4" />
+                <div className="h-4 w-64 bg-brand-dark/5 rounded" />
               </div>
-            </button>
+            }>
+              {/* Override Intake's full-page styling when embedded in Dashboard */}
+              <div className="dashboard-inline-intake [&>section]:min-h-0 [&>section]:py-0 [&>section]:px-0">
+                <Intake onComplete={onDiagnosticComplete} userEmail={userEmail} />
+              </div>
+            </Suspense>
           )}
 
           {/* STAGE: Preview ready — intake done, hasn't paid yet */}
