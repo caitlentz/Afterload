@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, ChevronUp, User, Activity, AlertTriangle, Shield, Heart, Wrench, ArrowRight, MessageSquare, Send } from 'lucide-react';
+import { ChevronDown, ChevronUp, User, Activity, AlertTriangle, Shield, Wrench, ArrowRight, MessageSquare, Send } from 'lucide-react';
 import { fetchAllClients, saveAdminNote } from '../utils/database';
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
 
