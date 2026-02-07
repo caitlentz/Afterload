@@ -53,6 +53,7 @@ const PaymentGate = lazy(() => import('./components/PaymentGate'));
 const Login = lazy(() => import('./components/Login'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const AdminView = lazy(() => import('./components/AdminView'));
+const FullReport = lazy(() => import('./components/FullReport'));
 const SuccessScreen = lazy(() => import('./components/SuccessScreen'));
 const Background = lazy(() => import('./components/Background'));
 
@@ -61,6 +62,7 @@ enum View {
   DIAGNOSTIC_PREVIEW = 'DIAGNOSTIC_PREVIEW',
   PAYMENT = 'PAYMENT',
   CLARITY_SESSION = 'CLARITY_SESSION',
+  FULL_REPORT = 'FULL_REPORT',
   SUCCESS = 'SUCCESS',
   LOGIN = 'LOGIN',
   DASHBOARD = 'DASHBOARD',
@@ -364,6 +366,7 @@ export default function App() {
                      {activeView === View.DIAGNOSTIC_PREVIEW && "Preview"}
                      {activeView === View.PAYMENT && "Secure Checkout"}
                      {activeView === View.CLARITY_SESSION && "Clarity Session"}
+                     {activeView === View.FULL_REPORT && "Your Report"}
                      {activeView === View.SUCCESS && "Confirmed"}
                      {activeView === View.LOGIN && "Member Access"}
                    </div>
@@ -386,6 +389,7 @@ export default function App() {
                   diagnosticResult={null}
                   paymentStatus={paymentStatus}
                   onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
+                  onViewFullReport={() => navigate(View.FULL_REPORT)}
                   onDiagnosticComplete={handleInitialIntakeComplete}
                   onResumeIntake={() => navigate(View.CLARITY_SESSION)}
                   onStartPayment={() => navigate(View.PAYMENT)}
@@ -410,6 +414,9 @@ export default function App() {
             )}
             {activeView === View.LOGIN && (
               <Login onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
+            )}
+            {activeView === View.FULL_REPORT && (
+              <FullReport intakeData={intakeData} onBack={() => navigate(View.DASHBOARD)} />
             )}
             {activeView === View.ADMIN && (
               <AdminView />

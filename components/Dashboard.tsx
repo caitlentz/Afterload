@@ -29,6 +29,7 @@ interface DashboardProps {
   diagnosticResult: DiagnosticResult | null;
   paymentStatus: PaymentStatus;
   onViewReport: () => void;
+  onViewFullReport: () => void;
   onDiagnosticComplete: (answers: IntakeResponse) => void;
   onResumeIntake: () => void;
   onStartPayment: () => void;
@@ -98,7 +99,7 @@ function getContextMessage(stage: string, firstName: string): string {
     case 'awaiting_balance':
       return "Your clarity session is submitted. We're building your report now.";
     case 'fully_paid':
-      return "Everything is locked in. Your report is on its way.";
+      return "Everything is locked in. Your report will appear here when it's ready.";
     default:
       return "Here's where things stand.";
   }
@@ -110,6 +111,7 @@ export default function Dashboard({
   diagnosticResult,
   paymentStatus,
   onViewReport,
+  onViewFullReport,
   onDiagnosticComplete,
   onResumeIntake,
   onStartPayment,
@@ -122,6 +124,7 @@ export default function Dashboard({
   const [showAnswers, setShowAnswers] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState('');
+  const [reportReleased, setReportReleased] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const hasReport = !!diagnosticResult;
@@ -180,6 +183,15 @@ export default function Dashboard({
     setIsEditingName(false);
     setEditName('');
   };
+
+  // Check if admin has released the full report for this client
+  useEffect(() => {
+    if (stage === 'fully_paid' || stage === 'awaiting_balance') {
+      import('../utils/database').then(({ checkReportReleased }) =>
+        checkReportReleased(userEmail).then(setReportReleased)
+      );
+    }
+  }, [stage, userEmail]);
 
   const greeting = getGreeting();
   const contextMessage = getContextMessage(stage, firstName);
@@ -555,26 +567,66 @@ export default function Dashboard({
 
           {/* STAGE: Fully paid — everything received */}
           {stage === 'fully_paid' && (
-            <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
-                  <CheckCircle size={20} />
+            <div className="space-y-4">
+              {/* Report released — show the big CTA */}
+              {reportReleased && (
+                <button
+                  onClick={onViewFullReport}
+                  className="w-full text-left bg-brand-dark text-white p-8 md:p-10 rounded-[2rem] shadow-lg hover:shadow-xl transition-all group relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Sparkles size={16} className="text-white/60" />
+                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
+                        Report Ready
+                      </span>
+                    </div>
+                    <h2 className="font-serif text-2xl md:text-3xl text-white mb-2">
+                      View Your Business Clarity Report
+                    </h2>
+                    <p className="text-white/60 text-sm mb-6 max-w-md font-lora">
+                      Your full report is ready. Constraint analysis, delegation matrix, roadmap — it's all here.
+                    </p>
+                    <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/70 group-hover:text-white group-hover:gap-3 transition-all">
+                      Open Report <ArrowRight size={14} />
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              {/* Waiting card — shows when report isn't released yet */}
+              {!reportReleased && (
+                <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                      <CheckCircle size={20} />
+                    </div>
+                    <div>
+                      <h2 className="font-serif text-xl text-brand-dark">Everything's in.</h2>
+                      <p className="text-brand-dark/40 text-xs">Answers received · Payment confirmed · Report in progress</p>
+                    </div>
+                  </div>
+                  <p className="text-brand-dark/60 text-sm font-lora leading-relaxed mb-6">
+                    Your Business Clarity Report is being prepared and will appear here when it's ready.
+                    You'll receive an email at <span className="font-bold text-brand-dark">{userEmail}</span> when it's available.
+                  </p>
                 </div>
-                <div>
-                  <h2 className="font-serif text-xl text-brand-dark">Everything's in.</h2>
-                  <p className="text-brand-dark/40 text-xs">Answers received · Payment confirmed · Report in progress</p>
-                </div>
-              </div>
-              <p className="text-brand-dark/60 text-sm font-lora leading-relaxed mb-6">
-                Your Business Clarity Report will be sent to{' '}
-                <span className="font-bold text-brand-dark">{userEmail}</span> within 5–7 business days.
-              </p>
+              )}
+
+              {/* Preview link */}
               {intakeData && (
                 <button
                   onClick={onViewReport}
-                  className="text-xs font-bold uppercase tracking-widest text-brand-mid hover:text-brand-deep transition-colors flex items-center gap-2"
+                  className="w-full text-left bg-white/50 backdrop-blur-xl p-5 rounded-2xl border border-white/60 hover:bg-white/70 transition-all group"
                 >
-                  Review Preview Report <ChevronRight size={14} />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Activity size={16} className="text-brand-dark/30" />
+                      <span className="text-sm text-brand-dark/50 font-lora">Review your preview report</span>
+                    </div>
+                    <ChevronRight size={16} className="text-brand-dark/20 group-hover:text-brand-mid transition-colors" />
+                  </div>
                 </button>
               )}
             </div>

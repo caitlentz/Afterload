@@ -209,6 +209,11 @@ export default function AdminView() {
     loadData();
   };
 
+  const handleReleaseReport = async (clientId: string) => {
+    await saveAdminTaggedNote(clientId, `Report released for client viewing on ${new Date().toLocaleDateString()}`, 'report-released');
+    loadData();
+  };
+
   // Filtered + sorted clients
   const filteredClients = useMemo(() => {
     return clients
@@ -461,13 +466,31 @@ export default function AdminView() {
 
                         {/* Action buttons */}
                         {stage !== 'delivered' && (stage === 'balance_paid' || stage === 'clarity_done') && (
-                          <button
-                            onClick={() => handleMarkDelivered(client.id)}
-                            className="w-full py-3 rounded-xl bg-green-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
-                          >
-                            <CheckCircle size={14} />
-                            Mark as Delivered
-                          </button>
+                          <div className="space-y-2">
+                            {/* Release Report — makes the in-app report visible to the client */}
+                            {hasClaritySession && !client.admin_notes?.some((n: any) => n.note?.includes('[report-released]')) && (
+                              <button
+                                onClick={() => handleReleaseReport(client.id)}
+                                className="w-full py-3 rounded-xl bg-brand-deep text-white text-xs font-bold uppercase tracking-widest hover:bg-brand-dark transition-colors flex items-center justify-center gap-2"
+                              >
+                                <Shield size={14} />
+                                Release Report to Client
+                              </button>
+                            )}
+                            {client.admin_notes?.some((n: any) => n.note?.includes('[report-released]')) && (
+                              <div className="flex items-center gap-2 py-2 px-3 bg-purple-50 rounded-xl">
+                                <CheckCircle size={12} className="text-purple-500" />
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-600">Report released — client can view in-app</span>
+                              </div>
+                            )}
+                            <button
+                              onClick={() => handleMarkDelivered(client.id)}
+                              className="w-full py-3 rounded-xl bg-green-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-green-700 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <CheckCircle size={14} />
+                              Mark as Delivered
+                            </button>
+                          </div>
                         )}
 
                         {/* Quick context */}

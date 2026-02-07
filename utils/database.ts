@@ -164,6 +164,35 @@ export async function saveAdminTaggedNote(clientId: string, note: string, tag: s
   return !error;
 }
 
+// ------------------------------------------------------------------
+// CHECK REPORT RELEASED
+// Queries admin_notes for the [report-released] tag for this client.
+// Returns true if the admin has released the report for viewing.
+// ------------------------------------------------------------------
+export async function checkReportReleased(email: string): Promise<boolean> {
+  try {
+    const { data: client } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('email', email.toLowerCase())
+      .single();
+
+    if (!client) return false;
+
+    const { data: notes, error } = await supabase
+      .from('admin_notes')
+      .select('note')
+      .eq('client_id', client.id);
+
+    if (error || !notes) return false;
+
+    return notes.some((n: any) => n.note?.includes('[report-released]'));
+  } catch (e) {
+    console.error('checkReportReleased error:', e);
+    return false;
+  }
+}
+
 export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
   const result: PaymentStatus = {
     depositPaid: false,
