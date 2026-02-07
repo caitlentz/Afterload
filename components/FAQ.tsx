@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus } from 'lucide-react';
 
 interface FAQItemProps {
@@ -24,21 +23,13 @@ const FAQItem = ({ question, answer, isOpen, onClick }: FAQItemProps) => {
           {isOpen ? <Minus size={14} /> : <Plus size={14} />}
         </div>
       </button>
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
-            className="overflow-hidden"
-          >
-            <p className="pb-8 font-lora text-lg text-brand-dark/70 leading-relaxed max-w-2xl">
-              {answer}
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <div className={`grid transition-all duration-300 ease-out ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+        <div className="overflow-hidden">
+          <p className="pb-8 font-lora text-lg text-brand-dark/70 leading-relaxed max-w-2xl">
+            {answer}
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

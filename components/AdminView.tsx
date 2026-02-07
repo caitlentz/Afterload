@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, User, Activity, AlertTriangle, Shield, Heart, Wrench, ArrowRight, MessageSquare, Send } from 'lucide-react';
 import { fetchAllClients, saveAdminNote } from '../utils/database';
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
-
-const smoothEase = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 // Score badge color helper
 function scoreColor(level: string): string {
@@ -103,15 +100,12 @@ export default function AdminView() {
   return (
     <div className="min-h-screen w-full pt-28 pb-20 px-6">
       <div className="max-w-4xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: smoothEase }}
-          className="mb-10"
+        <div
+          className="mb-10 animate-[fadeInUp_0.6s_ease-out_both]"
         >
           <h1 className="font-serif text-3xl md:text-4xl text-brand-dark mb-2">Client Review</h1>
           <p className="text-brand-dark/40 text-sm">{clients.length} client{clients.length !== 1 ? 's' : ''}</p>
-        </motion.div>
+        </div>
 
         <div className="space-y-4">
           {clients.map((client, idx) => {
@@ -137,11 +131,10 @@ export default function AdminView() {
             }
 
             return (
-              <motion.div
+              <div
                 key={client.id}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.05, duration: 0.4, ease: smoothEase }}
+                className="animate-[fadeInUp_0.4s_ease-out_both]"
+                style={{ animationDelay: `${idx * 0.05}s` }}
               >
                 {/* Client header (always visible) */}
                 <button
@@ -180,15 +173,8 @@ export default function AdminView() {
                 </button>
 
                 {/* Expanded client detail */}
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3, ease: smoothEase }}
-                      className="overflow-hidden"
-                    >
+                <div className={`grid transition-all duration-300 ease-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
+                  <div className="overflow-hidden">
                       <div className="bg-white/50 backdrop-blur-md rounded-b-2xl border-x border-b border-white/60 -mt-2 pt-6 pb-6 px-6 space-y-6">
 
                         {/* Quick context */}
@@ -394,10 +380,9 @@ export default function AdminView() {
                         </div>
 
                       </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
+                  </div>
+                </div>
+              </div>
             );
           })}
         </div>

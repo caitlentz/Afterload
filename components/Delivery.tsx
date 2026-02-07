@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, Variants } from 'framer-motion';
+import { useInView } from '../utils/useInView';
 import { Map, Zap, ArrowRight } from 'lucide-react';
 
 const deliverables = [
@@ -20,100 +20,44 @@ const deliverables = [
   }
 ];
 
-const headingContainerVariants: Variants = {
-  visible: { transition: { staggerChildren: 0.15 } }
-};
-
-const headingWordVariants: Variants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.4, 0, 0.2, 1] } }
-};
-
-const listContainerVariants: Variants = {
-  visible: { transition: { staggerChildren: 0.3 } }
-};
-
-const listItemVariants: Variants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1 }
-};
-
-const lineVariants: Variants = {
-  hidden: { scaleX: 0 },
-  visible: { scaleX: 1, transition: { duration: 0.5, ease: 'easeOut' } }
-};
-
-const contentVariants: Variants = {
-  hidden: { opacity: 0, x: -20 },
-  visible: { opacity: 1, x: 0, transition: { duration: 0.5, ease: 'easeOut', delay: 0.2 } }
-};
-
 const WhatYouGet: React.FC = () => {
+  const { ref: inViewRef, isInView } = useInView();
   return (
     <section className="py-24 px-6 bg-transparent relative z-10">
       <div className="max-w-4xl mx-auto">
-        <motion.div 
-          initial={{ opacity: 0, scale: 0.95 }}
-          whileInView={{ opacity: 1, scale: 1 }}
-          viewport={{ once: true, amount: 0.2 }}
-          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="bg-sage-300/15 rounded-[2.5rem] p-8 md:p-16 border border-white/80 shadow-[0_2px_8px_-3px_rgba(36,14,56,0.3)]"
+        <div
+          ref={inViewRef}
+          className={`bg-sage-300/15 rounded-[2.5rem] p-8 md:p-16 border border-white/80 shadow-[0_2px_8px_-3px_rgba(36,14,56,0.3)] ${isInView ? 'animate-[scaleIn_0.8s_ease-out_both]' : 'opacity-0'}`}
         >
           <div className="max-w-3xl mx-auto">
             {/* Heading Section */}
-            <motion.div 
-              className="mb-20"
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.5 }}
-              variants={headingContainerVariants}
-            >
-              <motion.div
-                variants={headingWordVariants}
-                className="mb-4"
-              >
-                <span className="text-xs font-bold tracking-[0.2em] text-brand-mid/70 uppercase">
+            <div className="mb-20">
+              <div className="mb-4">
+                <span className="text-xs font-bold tracking-[0.2em] text-brand-mid/70 uppercase animate-[fadeInUp_0.6s_ease-out_both]">
                   Your Assets
                 </span>
-              </motion.div>
+              </div>
 
-              <motion.h2 
-                variants={headingContainerVariants}
-                className="font-serif text-5xl md:text-7xl text-brand-dark mb-6 leading-tight"
-              >
-                <motion.span variants={headingWordVariants} className="inline-block text-brand-deep">Clarity, </motion.span><br />
-                <motion.span variants={headingWordVariants} className="inline-block italic text-brand-rich/75"> delivered.</motion.span>
-              </motion.h2>
+              <h2 className="font-serif text-5xl md:text-7xl text-brand-dark mb-6 leading-tight">
+                <span className="inline-block text-brand-deep animate-[fadeInUp_0.6s_ease-out_0.15s_both]">Clarity, </span><br />
+                <span className="inline-block italic text-brand-rich/75 animate-[fadeInUp_0.6s_ease-out_0.3s_both]"> delivered.</span>
+              </h2>
 
-              <motion.p 
-                className="text-lg md:text-xl text-brand-dark/60 max-w-2xl font-lora"
-                variants={headingWordVariants}
+              <p
+                className="text-lg md:text-xl text-brand-dark/60 max-w-2xl font-lora animate-[fadeInUp_0.6s_ease-out_0.45s_both]"
               > I sort the mess. You get something you can actually use.
-              </motion.p>
-            </motion.div>
+              </p>
+            </div>
 
             {/* Deliverables List */}
-            <motion.div
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true, amount: 0.2 }}
-              variants={listContainerVariants}
-            >
+            <div>
               {deliverables.map((item, idx) => (
-                <motion.div
+                <div
                   key={idx}
-                  variants={listItemVariants}
-                  className="mt-12 first:mt-0"
+                  className={`mt-12 first:mt-0 animate-[fadeIn_0.5s_ease-out_${idx * 0.3}s_both]`}
                 >
-                  <motion.div 
-                    className="h-px bg-brand-dark/10"
-                    variants={lineVariants}
-                    style={{ transformOrigin: 'left' }}
-                  />
-                  <motion.div
-                    variants={contentVariants}
-                    className="flex items-start gap-6 md:gap-8 pt-12"
-                  >
+                  <div className="h-px bg-brand-dark/10" />
+                  <div className="flex items-start gap-6 md:gap-8 pt-12">
                     <div className="mt-1 text-brand-accent/80">
                       <item.icon size={50} strokeWidth={.5} />
                     </div>
@@ -124,12 +68,12 @@ const WhatYouGet: React.FC = () => {
                         dangerouslySetInnerHTML={{ __html: item.body }}
                       />
                     </div>
-                  </motion.div>
-                </motion.div>
+                  </div>
+                </div>
               ))}
-            </motion.div>
+            </div>
           </div>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

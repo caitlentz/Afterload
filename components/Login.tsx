@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { Mail, ArrowRight, Lock, ArrowLeft, CheckCircle } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 
@@ -50,20 +50,11 @@ export default function Login({ onBack, onSuccess }: LoginProps) {
             <span>Back</span>
         </button>
 
-        <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-white/70 backdrop-blur-3xl p-10 md:p-12 rounded-[2.5rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white/90 relative overflow-hidden"
+        <div
+            className="animate-[fadeInUp_0.5s_ease-out_both] bg-white/70 backdrop-blur-3xl p-10 md:p-12 rounded-[2.5rem] shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)] border border-white/90 relative overflow-hidden"
         >
-            <AnimatePresence mode="wait">
                 {step === 'email' ? (
-                    <motion.div
-                        key="step-email"
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: 20 }}
-                        transition={{ duration: 0.3 }}
-                    >
+                    <div key="step-email" className="animate-[fadeIn_0.3s_ease-out_both]">
                         <div className="w-12 h-12 rounded-full bg-brand-deep text-white flex items-center justify-center mb-6 shadow-lg shadow-brand-deep/20">
                             <Lock size={20} />
                         </div>
@@ -108,15 +99,9 @@ export default function Login({ onBack, onSuccess }: LoginProps) {
                             </button>
                         </form>
 
-                    </motion.div>
+                    </div>
                 ) : (
-                    <motion.div
-                        key="step-sent"
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        transition={{ duration: 0.3 }}
-                    >
+                    <div key="step-sent" className="animate-[fadeIn_0.3s_ease-out_both]">
                         <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mb-6">
                             <CheckCircle size={20} />
                         </div>
@@ -139,10 +124,9 @@ export default function Login({ onBack, onSuccess }: LoginProps) {
                         >
                             Use a different email
                         </button>
-                    </motion.div>
+                    </div>
                 )}
-            </AnimatePresence>
-        </motion.div>
+        </div>
       </div>
     </section>
   );

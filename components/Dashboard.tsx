@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight,
   LogOut,
@@ -36,8 +35,6 @@ interface DashboardProps {
   onLogout: () => void;
   key?: React.Key;
 }
-
-const smoothEase = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 // Human-readable labels for intake question IDs
 const ANSWER_LABELS: Record<string, string> = {
@@ -177,11 +174,8 @@ export default function Dashboard({
     <div className="min-h-screen w-full relative z-20 pt-28 pb-20 px-6">
       <div className="max-w-3xl mx-auto">
         {/* Greeting + Settings */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: smoothEase }}
-          className="mb-12"
+        <div
+          className="mb-12 animate-[fadeInUp_0.6s_ease-out_both]"
         >
           <div className="flex items-start justify-between">
             <div className="flex-1 min-w-0">
@@ -247,15 +241,8 @@ export default function Dashboard({
           </div>
 
           {/* Settings Panel */}
-          <AnimatePresence>
-            {showSettings && (
-              <motion.div
-                initial={{ opacity: 0, height: 0, marginTop: 0 }}
-                animate={{ opacity: 1, height: 'auto', marginTop: 16 }}
-                exit={{ opacity: 0, height: 0, marginTop: 0 }}
-                transition={{ duration: 0.3, ease: smoothEase }}
-                className="overflow-hidden"
-              >
+          <div className={`grid transition-all duration-300 ease-out ${showSettings ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 mt-0'}`}>
+            <div className="overflow-hidden">
                 <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-6 space-y-4">
                   <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-2">
                     Settings
@@ -308,17 +295,13 @@ export default function Dashboard({
                     </div>
                   </button>
                 </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.div>
+            </div>
+          </div>
+        </div>
 
         {/* Journey Progress */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.6, ease: smoothEase }}
-          className="mb-10"
+        <div
+          className="mb-10 animate-[fadeInUp_0.6s_ease-out_0.1s_both]"
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
             Your Journey
@@ -361,14 +344,11 @@ export default function Dashboard({
               );
             })}
           </div>
-        </motion.div>
+        </div>
 
         {/* Primary Action Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6, ease: smoothEase }}
-          className="mb-8"
+        <div
+          className="mb-8 animate-[fadeInUp_0.6s_ease-out_0.2s_both]"
         >
           {/* STAGE: Fresh — No intake yet */}
           {stage === 'fresh' && (
@@ -597,15 +577,12 @@ export default function Dashboard({
               )}
             </div>
           )}
-        </motion.div>
+        </div>
 
         {/* Quick Stats (only if we have data) */}
         {intakeData && Object.keys(intakeData).length > 3 && (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6, ease: smoothEase }}
-            className="mb-8"
+          <div
+            className="mb-8 animate-[fadeInUp_0.6s_ease-out_0.3s_both]"
           >
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
               Snapshot
@@ -652,16 +629,13 @@ export default function Dashboard({
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Diagnostic Result Summary (if exists) */}
         {hasReport && diagnosticResult && (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.6, ease: smoothEase }}
-            className="mb-8"
+          <div
+            className="mb-8 animate-[fadeInUp_0.6s_ease-out_0.35s_both]"
           >
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
               Preliminary Findings
@@ -716,16 +690,13 @@ export default function Dashboard({
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Frustration Quote (if they wrote one) */}
         {intakeData?.biggest_frustration && (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.6, ease: smoothEase }}
-            className="mb-10"
+          <div
+            className="mb-10 animate-[fadeInUp_0.6s_ease-out_0.4s_both]"
           >
             <div className="bg-white/40 backdrop-blur-md p-6 rounded-2xl border border-white/60">
               <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3">
@@ -738,16 +709,13 @@ export default function Dashboard({
                 We heard you. This is exactly what the diagnostic is built to untangle.
               </p>
             </div>
-          </motion.div>
+          </div>
         )}
 
         {/* Your Answers (editable review) */}
         {intakeData && Object.keys(intakeData).filter(k => !SKIP_KEYS.includes(k) && ANSWER_LABELS[k]).length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.6, ease: smoothEase }}
-            className="mb-10"
+          <div
+            className="mb-10 animate-[fadeInUp_0.6s_ease-out_0.45s_both]"
           >
             <button
               onClick={() => setShowAnswers(!showAnswers)}
@@ -768,15 +736,8 @@ export default function Dashboard({
               </div>
             </button>
 
-            <AnimatePresence>
-              {showAnswers && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.3, ease: smoothEase }}
-                  className="overflow-hidden"
-                >
+            <div className={`grid transition-all duration-300 ease-out ${showAnswers ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 mt-0'}`}>
+              <div className="overflow-hidden">
                   <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-6">
                     <div className="space-y-4">
                       {Object.entries(intakeData)

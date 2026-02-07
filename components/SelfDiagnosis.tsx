@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import React from 'react';
+import { useInView } from '../utils/useInView';
 import { AlertCircle, MessageSquare, PauseCircle, Scaling, BatteryMedium } from 'lucide-react';
 
 const symptomsList = [
@@ -56,20 +56,12 @@ interface SymptomCardProps {
 }
 
 const SymptomCard: React.FC<SymptomCardProps> = ({ item, index }) => {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const { scrollYProgress } = useScroll({
-    target: cardRef,
-    offset: ["start 85%", "end 25%"]
-  });
+  const { ref: inViewRef, isInView } = useInView();
 
-  const opacity = useTransform(scrollYProgress, [0, 0.2, 0.9, 1], [0.3, 1, 1, 0.3]);
-  const scale = useTransform(scrollYProgress, [0, 0.2, 0.9, 1], [0.92, 1, 1, 0.92]);
-  
   return (
-    <motion.div
-      ref={cardRef}
-      style={{ opacity, scale }}
-      className="mb-4 md:mb-6 last:mb-0 relative"
+    <div
+      ref={inViewRef}
+      className={`mb-4 md:mb-6 last:mb-0 relative ${isInView ? 'animate-[fadeInUp_0.6s_ease-out_both]' : 'opacity-0'}`}
     >
       <div className="group relative p-6 md:p-8 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-sm transition-all duration-500 hover:shadow-md hover:bg-white/50 overflow-hidden">
 
@@ -86,14 +78,14 @@ const SymptomCard: React.FC<SymptomCardProps> = ({ item, index }) => {
                  {item.highlight}
               </span>
                 </div>
-                <p 
+                <p
                   className="text-sm md:text-base text-lavender-700/90 font-sans leading-relaxed"
                   dangerouslySetInnerHTML={{ __html: item.text }}
                 />
             </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 };
 
@@ -102,6 +94,8 @@ interface SymptomsProps {
 }
 
 const Symptoms: React.FC<SymptomsProps> = ({ onStartIntake }) => {
+  const { ref: quoteRef, isInView: quoteInView } = useInView();
+
   return (
     <section id="symptoms" className="py-24 px-6 relative">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-12 md:gap-24">
@@ -119,33 +113,26 @@ const Symptoms: React.FC<SymptomsProps> = ({ onStartIntake }) => {
             <span className="relative inline-block font-semibold bg-gradient-to-br from-brand-deep via-brand-rich to-brand-deep bg-clip-text text-transparent pb-1">
                you.
                {/* Underline decoration */}
-               <motion.svg 
-                initial={{ pathLength: 0 }}
-                whileInView={{ pathLength: 1 }}
-                viewport={{ once: true }}
-                transition={{ duration: 1, delay: 0.5 }}
-                className="absolute -bottom-2 md:-bottom-4 left-0 w-full h-3 md:h-4 text-brand-rich/30 origin-left" 
-                viewBox="0 0 100 15" 
+               <svg
+                className="absolute -bottom-2 md:-bottom-4 left-0 w-full h-3 md:h-4 text-brand-rich/30 origin-left"
+                viewBox="0 0 100 15"
                 preserveAspectRatio="none"
                >
                  <path d="M0 5 Q 50 15 100 5" stroke="currentColor" strokeWidth="2" fill="none" />
-               </motion.svg>
+               </svg>
             </span>
           </h2>
           {/* Side Quote Style */}
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            whileInView={{ opacity: 1, x: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.3 }}
-            className="relative z-10 flex justify-center mt-10"
+          <div
+            ref={quoteRef}
+            className={`relative z-10 flex justify-center mt-10 ${quoteInView ? 'animate-[fadeInLeft_0.6s_ease-out_both]' : 'opacity-0'}`}
           >
             <div className="border-l-2 border-sage-400/30 pl-6 py-1 max-w-sm text-left">
                 <p className="font-serif italic text-lg text-sage-600/80 leading-relaxed">
                     If any of this feels uncomfortably accurate, you're in the right place.
                 </p>
             </div>
-          </motion.div>
+          </div>
         </div>
             </div>
         </div>

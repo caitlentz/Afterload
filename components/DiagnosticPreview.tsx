@@ -1,5 +1,4 @@
 import React from 'react';
-import { motion } from 'framer-motion';
 import { AlertTriangle, ArrowRight, Lock, Eye, Shield, Sparkles, Clock, Activity } from 'lucide-react';
 import { PreviewResult, LifecycleStage } from '../utils/previewEngine';
 
@@ -9,8 +8,6 @@ interface DiagnosticProps {
   preview: PreviewResult | null;
   key?: React.Key;
 }
-
-const smoothEase = [0.22, 1, 0.36, 1] as [number, number, number, number];
 
 const DependencyBadge = ({ level }: { level: PreviewResult['founderDependency'] }) => {
   const colors = {
@@ -80,11 +77,8 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
 
       {/* HEADER */}
       <div className="w-full max-w-3xl mx-auto pt-32 px-6 mb-16 text-center relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: smoothEase }}
-          className="flex flex-col items-center gap-5"
+        <div
+          className="flex flex-col items-center gap-5 animate-[fadeInUp_0.6s_ease-out_both]"
         >
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/60 backdrop-blur-sm border border-brand-dark/5 text-brand-mid shadow-sm">
             <Eye size={12} className="text-brand-mid/60" />
@@ -96,17 +90,14 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
           <p className="text-brand-dark/40 text-sm">
             {preview.date} · {preview.trackLabel} Track
           </p>
-        </motion.div>
+        </div>
       </div>
 
       <main className="w-full max-w-3xl mx-auto px-6 pb-32 relative z-10">
 
         {/* PRIMARY CONSTRAINT */}
-        <motion.section
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1, duration: 0.6, ease: smoothEase }}
-          className="mb-12"
+        <section
+          className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.1s_both]"
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
             Your Primary Constraint
@@ -120,14 +111,11 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               </p>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* FOUNDER DEPENDENCY */}
-        <motion.section
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.6, ease: smoothEase }}
-          className="mb-12"
+        <section
+          className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.15s_both]"
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
             Founder Dependency
@@ -141,14 +129,11 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               {preview.founderDependencySignal}
             </p>
           </div>
-        </motion.section>
+        </section>
 
         {/* SUSTAINABILITY HORIZON */}
-        <motion.section
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.6, ease: smoothEase }}
-          className="mb-12"
+        <section
+          className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.2s_both]"
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
             Sustainability Horizon
@@ -174,14 +159,11 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               </div>
             )}
           </div>
-        </motion.section>
+        </section>
 
         {/* LIFECYCLE HEATMAP */}
-        <motion.section
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25, duration: 0.6, ease: smoothEase }}
-          className="mb-12"
+        <section
+          className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.25s_both]"
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
             Operational Health Map
@@ -200,15 +182,12 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               ))}
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* RISK SIGNALS — the "oh shit" section */}
         {preview.riskSignals.length > 0 && (
-          <motion.section
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.6, ease: smoothEase }}
-            className="mb-12"
+          <section
+            className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.3s_both]"
           >
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
               What We See
@@ -226,15 +205,12 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
                 </div>
               ))}
             </div>
-          </motion.section>
+          </section>
         )}
 
         {/* SUCCESS TRAP */}
-        <motion.section
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35, duration: 0.6, ease: smoothEase }}
-          className="mb-12"
+        <section
+          className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.35s_both]"
         >
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
             The Success Trap
@@ -244,14 +220,11 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               {preview.successTrap}
             </p>
           </div>
-        </motion.section>
+        </section>
 
         {/* WHAT WE KNOW vs WHAT WE NEED */}
-        <motion.section
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.6, ease: smoothEase }}
-          className="mb-16"
+        <section
+          className="mb-16 animate-[fadeInUp_0.6s_ease-out_0.4s_both]"
         >
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* What We Know */}
@@ -291,14 +264,11 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               </div>
             </div>
           </div>
-        </motion.section>
+        </section>
 
         {/* LOCKED SECTIONS — visual tease */}
-        <motion.section
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45, duration: 0.6, ease: smoothEase }}
-          className="mb-16"
+        <section
+          className="mb-16 animate-[fadeInUp_0.6s_ease-out_0.45s_both]"
         >
           <div className="space-y-3 opacity-40">
             {['Process Heatmap', 'Pressure Point Analysis', 'Annual Friction Cost', 'Three-Phase Roadmap'].map((section) => (
@@ -311,14 +281,11 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               </div>
             ))}
           </div>
-        </motion.section>
+        </section>
 
         {/* CTA */}
-        <motion.section
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.6, ease: smoothEase }}
-          className="text-center"
+        <section
+          className="text-center animate-[fadeInUp_0.6s_ease-out_0.5s_both]"
         >
           <div className="bg-sage-300/15 backdrop-blur-xl p-10 md:p-14 rounded-[2.5rem] border border-white/80 shadow-[0_2px_8px_-3px_rgba(36,14,56,0.15)]">
             <div className="w-14 h-14 rounded-full bg-brand-dark text-white flex items-center justify-center mx-auto mb-6">
@@ -343,7 +310,7 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               </p>
             </div>
           </div>
-        </motion.section>
+        </section>
 
       </main>
     </div>
