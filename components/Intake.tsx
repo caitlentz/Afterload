@@ -175,7 +175,12 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
     }
 
     if (nextStep >= questions.length) {
-        const finalAnswers = { ...currentAnswers, ...contactForm, businessType: initialBusinessType };
+        const finalAnswers = {
+          ...currentAnswers,
+          ...contactForm,
+          businessType: initialBusinessType,
+          ...(mode === 'deep' ? { _deepDiveComplete: true } : {}),
+        };
         localStorage.removeItem(STORAGE_KEY);
         onComplete(finalAnswers);
     } else {

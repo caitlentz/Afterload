@@ -356,13 +356,21 @@ export default function App() {
               <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
             )}
             {activeView === View.PAYMENT && (
-              <PaymentGate onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)} onSuccess={() => navigate(View.DASHBOARD)} cost={300} />
+              <PaymentGate
+                onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)}
+                onSuccess={() => navigate(userEmail ? View.DASHBOARD : View.SUCCESS)}
+                cost={300}
+              />
             )}
             {activeView === View.DEEP_INTAKE && (
               <Intake mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
             )}
             {activeView === View.SUCCESS && (
-              <SuccessScreen email={successEmail} onRestart={handleRestart} />
+              <SuccessScreen
+                email={successEmail}
+                onRestart={handleRestart}
+                onLogin={() => navigate(View.LOGIN)}
+              />
             )}
             {activeView === View.LOGIN && (
               <Login onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
