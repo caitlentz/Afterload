@@ -24,6 +24,9 @@ export default function SuccessScreen({ email, onRestart, onLogin }: SuccessScre
           <Mail size={14} />
           Watch for: "Your Afterload Diagnosis"
         </div>
+        <p className="text-xs text-brand-dark/30 max-w-sm">
+          We sent a login link to your email during intake. Click it to access your dashboard anytime.
+        </p>
 
         {onLogin && (
           <button

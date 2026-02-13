@@ -78,13 +78,10 @@ function getContextMessage(stage: string, firstName: string): string {
     case 'fresh':
       return "You're in the right place. Let's figure out what's actually going on.";
     case 'preview_ready':
-      return "We found some things. Take a look when you're ready — no rush.";
-    case 'deposit_paid':
-      return "Deposit received — you're locked in. Time for the deep dive.";
+      return "We found some things. Take a look when you're ready — then continue to the deep dive.";
     case 'deep_complete':
-    case 'awaiting_balance':
-      return "Your deep dive is submitted. We're building your report now.";
-    case 'fully_paid':
+      return "All questions answered. Complete your payment to start the report.";
+    case 'paid':
       return "Everything is locked in. Your report is on its way.";
     default:
       return "Here's where things stand.";
@@ -122,28 +119,26 @@ export default function Dashboard({
   const firstName = intakeData?.firstName || userEmail.split('@')[0];
   const hasInitialIntake = intakeData && Object.keys(intakeData).length > 3;
 
-  // Determine journey stage — now includes payment awareness
-  type Stage = 'fresh' | 'preview_ready' | 'deposit_paid' | 'awaiting_balance' | 'fully_paid';
+  // Determine journey stage
+  type Stage = 'fresh' | 'preview_ready' | 'deep_complete' | 'paid';
   let stage: Stage = 'fresh';
-  if (hasDeepIntake && paymentStatus.balancePaid) stage = 'fully_paid';
-  else if (hasDeepIntake) stage = 'awaiting_balance';
-  else if (paymentStatus.depositPaid) stage = 'deposit_paid';
+  if (paymentStatus.paid) stage = 'paid';
+  else if (hasDeepIntake) stage = 'deep_complete';
   else if (hasInitialIntake) stage = 'preview_ready';
 
   const stages = [
     { id: 'fresh', label: 'Initial Intake', icon: FileText },
-    { id: 'preview_ready', label: 'Preview Report', icon: Activity },
-    { id: 'deposit_paid', label: 'Deep Dive', icon: Zap },
-    { id: 'awaiting_balance', label: 'Full Report', icon: Shield },
+    { id: 'preview_ready', label: 'Preview & Deep Dive', icon: Activity },
+    { id: 'deep_complete', label: 'Payment', icon: Shield },
+    { id: 'paid', label: 'Report', icon: Zap },
   ];
 
   // Map current stage to the visual progress tracker index
   const stageToIndex: Record<Stage, number> = {
     fresh: 0,
     preview_ready: 1,
-    deposit_paid: 2,
-    awaiting_balance: 3,
-    fully_paid: 3,
+    deep_complete: 2,
+    paid: 3,
   };
   const currentStageIndex = stageToIndex[stage];
 
@@ -383,7 +378,7 @@ export default function Dashboard({
             </button>
           )}
 
-          {/* STAGE: Preview ready — intake done, hasn't paid yet */}
+          {/* STAGE: Preview ready — intake done, deep dive not started */}
           {stage === 'preview_ready' && (
             <div className="space-y-4">
               <button
@@ -402,8 +397,7 @@ export default function Dashboard({
                       View Your Preview Report
                     </h2>
                     <p className="text-brand-dark/50 text-sm max-w-md font-lora">
-                      We identified some patterns. This is what we can see from the surface —
-                      the full report goes deeper.
+                      We identified some patterns. This is what we can see from the surface.
                     </p>
                   </div>
                   <ChevronRight
@@ -414,14 +408,14 @@ export default function Dashboard({
               </button>
 
               <button
-                onClick={onStartPayment}
+                onClick={onResumeIntake}
                 className="w-full text-left bg-brand-dark text-white p-6 md:p-8 rounded-[1.5rem] shadow-lg hover:shadow-xl transition-all group"
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-serif text-xl mb-1">Unlock the Full Diagnostic</h3>
+                    <h3 className="font-serif text-xl mb-1">Continue to Deep Dive</h3>
                     <p className="text-white/60 text-sm font-lora">
-                      $300 deposit · 25 targeted questions · Comprehensive report in 5–7 days
+                      25 targeted questions · About 10 minutes · This is where we find the real answers
                     </p>
                   </div>
                   <ArrowRight
@@ -433,51 +427,45 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* STAGE: Deposit paid — ready for deep dive questions */}
-          {stage === 'deposit_paid' && (
+          {/* STAGE: Deep dive complete — all questions answered, not paid */}
+          {stage === 'deep_complete' && (
             <div className="space-y-4">
-              {/* Payment confirmation */}
               <div className="bg-green-50/80 backdrop-blur-md p-4 rounded-2xl border border-green-200/60 flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0">
                   <CheckCircle size={16} />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-green-800">Deposit received</div>
+                  <div className="text-sm font-medium text-green-800">Deep dive complete</div>
                   <div className="text-[11px] text-green-600/70">
-                    {paymentStatus.depositDate
-                      ? new Date(paymentStatus.depositDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                      : 'Payment confirmed'}
-                    {' · $300'}
+                    All questions answered. One step left.
                   </div>
                 </div>
               </div>
 
-              {/* Deep dive CTA */}
               <button
-                onClick={onResumeIntake}
+                onClick={onStartPayment}
                 className="w-full text-left bg-brand-dark text-white p-8 md:p-10 rounded-[2rem] shadow-lg hover:shadow-xl transition-all group relative overflow-hidden"
               >
                 <div className="relative z-10">
                   <div className="flex items-center gap-2 mb-4">
-                    <Zap size={16} className="text-white/60" />
+                    <Shield size={16} className="text-white/60" />
                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
-                      You're Locked In
+                      Final Step
                     </span>
                   </div>
                   <h2 className="font-serif text-2xl md:text-3xl text-white mb-2">
-                    Start Your Deep Dive
+                    Complete Your Payment
                   </h2>
                   <p className="text-white/60 text-sm mb-6 max-w-md font-lora">
-                    25 targeted questions about your operations. This is where we find the
-                    things the surface-level scan can't see.
+                    $1,200 one-time payment. Your Business Clarity Report will be delivered
+                    within 5–7 business days.
                   </p>
                   <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/70 group-hover:text-white group-hover:gap-3 transition-all">
-                    Begin Deep Dive <ArrowRight size={14} />
+                    Proceed to Payment <ArrowRight size={14} />
                   </div>
                 </div>
               </button>
 
-              {/* Still show preview link */}
               {intakeData && (
                 <button
                   onClick={onViewReport}
@@ -495,70 +483,8 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* STAGE: Deep dive complete, awaiting balance payment */}
-          {stage === 'awaiting_balance' && (
-            <div className="space-y-4">
-              <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm">
-                <div className="flex items-center gap-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
-                    <CheckCircle size={20} />
-                  </div>
-                  <div>
-                    <h2 className="font-serif text-xl text-brand-dark">Deep dive submitted.</h2>
-                    <p className="text-brand-dark/40 text-xs">We're building your report now.</p>
-                  </div>
-                </div>
-
-                {/* Balance status */}
-                {!paymentStatus.balancePaid ? (
-                  <div className="bg-lavender-50/50 rounded-2xl border border-lavender-200/40 p-5 mb-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <div className="text-sm font-medium text-brand-dark mb-1">Balance due before delivery</div>
-                        <div className="text-[11px] text-brand-dark/40 font-lora">
-                          Your report will be delivered within 5–7 business days after the balance is received.
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <div className="font-serif text-2xl text-brand-dark">$900</div>
-                        <div className="text-[10px] text-brand-dark/30 uppercase tracking-wider">remaining</div>
-                      </div>
-                    </div>
-                    <p className="text-[11px] text-brand-dark/40 mt-3 font-lora italic">
-                      We'll send payment instructions to {userEmail} when your report is ready for delivery.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="bg-green-50/80 backdrop-blur-md p-4 rounded-2xl border border-green-200/60 flex items-center gap-3 mb-6">
-                    <div className="w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0">
-                      <CheckCircle size={16} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-green-800">Fully paid</div>
-                      <div className="text-[11px] text-green-600/70">$1,200 total · Report delivery in progress</div>
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-brand-dark/60 text-sm font-lora leading-relaxed mb-6">
-                  Your Business Clarity Report will be sent to{' '}
-                  <span className="font-bold text-brand-dark">{userEmail}</span> within 5–7 business days.
-                  You don't need to do anything else right now.
-                </p>
-                {intakeData && (
-                  <button
-                    onClick={onViewReport}
-                    className="text-xs font-bold uppercase tracking-widest text-brand-mid hover:text-brand-deep transition-colors flex items-center gap-2"
-                  >
-                    Review Preview Report <ChevronRight size={14} />
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* STAGE: Fully paid — everything received */}
-          {stage === 'fully_paid' && (
+          {/* STAGE: Paid — report in progress */}
+          {stage === 'paid' && (
             <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm">
               <div className="flex items-center gap-3 mb-6">
                 <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">

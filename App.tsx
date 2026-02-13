@@ -63,6 +63,8 @@ export default function App() {
     balancePaid: false,
     depositDate: null,
     balanceDate: null,
+    paid: false,
+    paidDate: null,
   });
 
   // Fetch payment status whenever we have an email (lazy-loads database module)
@@ -156,14 +158,17 @@ export default function App() {
         returnedFromStripe = true;
     }
 
-    // If returning from Stripe, re-fetch payment status (webhook may have already fired)
+    // If returning from Stripe, poll payment status until webhook confirms it
     if (returnedFromStripe && userEmail) {
-      // Small delay to give webhook time to process
-      setTimeout(() => {
-        import('./utils/database').then(({ getPaymentStatus }) =>
-          getPaymentStatus(userEmail).then(setPaymentStatus)
-        );
-      }, 2000);
+      const pollPayment = async (attempts: number) => {
+        const { getPaymentStatus } = await import('./utils/database');
+        const status = await getPaymentStatus(userEmail);
+        setPaymentStatus(status);
+        if (!status.paid && attempts > 0) {
+          setTimeout(() => pollPayment(attempts - 1), 3000);
+        }
+      };
+      setTimeout(() => pollPayment(4), 2000);
     }
 
     // Secret admin route: ?admin=true
@@ -201,13 +206,23 @@ export default function App() {
       const track = determineTrack(answers.business_type);
       const intakeId = await saveIntakeResponse(email, 'initial', answers, track);
       saveDiagnosticResult(email, 'preview', preview, intakeId || undefined);
+
+      // Send magic link for account creation (non-blocking, fire-and-forget)
+      if (!userEmail) {
+        import('./utils/supabase').then(({ supabase }) => {
+          supabase.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: window.location.origin },
+          });
+        });
+      }
     }
   };
 
   const handleDeepIntakeComplete = async (finalAnswers: any) => {
     const merged = { ...intakeData, ...finalAnswers };
     setIntakeData(merged);
-    navigate(View.SUCCESS);
+    navigate(View.PAYMENT);
 
     // Save to Supabase (non-blocking)
     const email = merged.email || userEmail;
@@ -353,13 +368,13 @@ export default function App() {
             )}
 
             {activeView === View.DIAGNOSTIC_PREVIEW && (
-              <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
+              <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.DEEP_INTAKE)} />
             )}
             {activeView === View.PAYMENT && (
               <PaymentGate
-                onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)}
+                onBack={() => navigate(View.DEEP_INTAKE)}
                 onSuccess={() => navigate(userEmail ? View.DASHBOARD : View.SUCCESS)}
-                cost={300}
+                cost={1200}
               />
             )}
             {activeView === View.DEEP_INTAKE && (

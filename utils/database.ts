@@ -142,6 +142,8 @@ export interface PaymentStatus {
   balancePaid: boolean;
   depositDate: string | null;
   balanceDate: string | null;
+  paid: boolean;
+  paidDate: string | null;
 }
 
 export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
@@ -150,6 +152,8 @@ export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
     balancePaid: false,
     depositDate: null,
     balanceDate: null,
+    paid: false,
+    paidDate: null,
   };
 
   try {
@@ -176,6 +180,10 @@ export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
       if (p.payment_type === 'balance') {
         result.balancePaid = true;
         result.balanceDate = p.created_at;
+      }
+      if (p.payment_type === 'full') {
+        result.paid = true;
+        result.paidDate = p.created_at;
       }
     }
   } catch (e) {

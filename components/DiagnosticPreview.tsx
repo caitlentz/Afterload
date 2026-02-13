@@ -303,10 +303,10 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
                 onClick={onUnlock}
                 className="px-10 py-4 bg-brand-dark text-white rounded-full font-bold uppercase tracking-widest text-xs hover:bg-brand-dark/80 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
               >
-                Unlock Full Diagnostic — $300 Deposit <ArrowRight size={14} />
+                Continue to Deep Dive <ArrowRight size={14} />
               </button>
               <p className="text-[10px] text-brand-dark/30 max-w-xs">
-                $300 now, $900 on delivery. Full refund if we can't identify a structural constraint.
+                25 targeted questions. About 10 minutes. Free to answer — payment comes after.
               </p>
             </div>
           </div>
