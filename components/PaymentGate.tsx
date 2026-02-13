@@ -106,9 +106,8 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
           {/* Stripe Button */}
           <div className="px-8 md:px-12 pb-6">
             <div className="w-full flex justify-center">
-              {/* TODO: Replace with your new $1,200 Stripe Buy Button ID */}
               <StripeBuyButton
-                buy-button-id="buy_btn_REPLACE_WITH_1200_BUTTON_ID"
+                buy-button-id="buy_btn_1SvmF5Aw6xE6hpmRVOFHQDde"
                 publishable-key="pk_live_51RKvWMAw6xE6hpmRkoExos4LVjkBKK1lnRONIYbE5YmjjOTG74wTZZaG4NtORAkHa4CwIDlVECpF7sIbpIOgAt5h00FZUbgWIL"
               />
             </div>
