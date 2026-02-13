@@ -128,7 +128,13 @@ export default function Dashboard({
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const hasReport = !!diagnosticResult;
-  const hasDeepIntake = intakeData && Object.keys(intakeData).length > 15;
+  // Detect deep dive by checking for question IDs unique to the deep dive,
+  // NOT by key count (initial intake alone can have 16+ keys).
+  const DEEP_DIVE_IDS = ['financial_authority_threshold', 'deep_work_audit', 'runway_stress_test', 'low_value_hours_audit'];
+  const hasDeepIntake = intakeData && (
+    !!(intakeData as any)._deepDiveComplete ||
+    DEEP_DIVE_IDS.some(id => id in intakeData)
+  );
   const businessName = intakeData?.businessName || null;
   const firstName = intakeData?.firstName || userEmail.split('@')[0];
   const hasInitialIntake = intakeData && Object.keys(intakeData).length > 3;

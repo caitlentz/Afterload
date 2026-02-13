@@ -3,6 +3,8 @@ import { useInView } from '../utils/useInView';
 import { PhoneOff, BellOff, FileText, Video } from 'lucide-react';
 
 export default function AntiPitch() {
+  const { ref: headerRef, isInView: headerInView } = useInView();
+
   const items = [
     {
       icon: <PhoneOff size={22} strokeWidth={1} />,
@@ -31,15 +33,15 @@ export default function AntiPitch() {
       <div className="max-w-2xl mx-auto">
 
         {/* Header - New variation */}
-        <div className="text-center mb-24 md:mb-32">
+        <div ref={headerRef} className="text-center mb-24 md:mb-32">
           <div
-            className="text-xs font-bold tracking-[0.2em] text-brand-mid/90 uppercase mb-6 animate-[fadeInUp_0.5s_ease-out_both]"
+            className={`text-xs font-bold tracking-[0.2em] text-brand-mid/90 uppercase mb-6 transition-all duration-700 ${headerInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
           >
             The Anti-Pitch
           </div>
 
           <h2
-            className="text-5xl md:text-7xl font-serif text-brand-deep leading-[0.9] animate-[fadeInUp_0.5s_ease-out_0.1s_both]"
+            className={`text-5xl md:text-7xl font-serif text-brand-deep leading-[0.9] transition-all duration-700 delay-100 ${headerInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
           >
             Protect <br />
             <span className="italic text-brand-deep/70">your energy.</span>
@@ -55,7 +57,7 @@ export default function AntiPitch() {
 
         {/* Footer Quote Area matching screenshot */}
         <div
-            className="mt-20 pt-12 border-t border-brand-dark/10 flex flex-col md:flex-row justify-between items-end gap-8 animate-[fadeIn_0.5s_ease-out_0.5s_both]"
+            className="mt-20 pt-12 border-t border-brand-dark/10 flex flex-col md:flex-row justify-between items-end gap-8"
         >
             <p className="font-lora italic text-brand-dark/60 text-lg md:text-xl max-w-md leading-relaxed">
                 "The industry is built on dependency. Afterload is built on autonomy."

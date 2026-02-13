@@ -33,18 +33,18 @@ const WhatYouGet: React.FC = () => {
             {/* Heading Section */}
             <div className="mb-20">
               <div className="mb-4">
-                <span className="text-xs font-bold tracking-[0.2em] text-brand-mid/70 uppercase animate-[fadeInUp_0.6s_ease-out_both]">
+                <span className={`text-xs font-bold tracking-[0.2em] text-brand-mid/70 uppercase transition-all duration-700 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
                   Your Assets
                 </span>
               </div>
 
               <h2 className="font-serif text-5xl md:text-7xl text-brand-dark mb-6 leading-tight">
-                <span className="inline-block text-brand-deep animate-[fadeInUp_0.6s_ease-out_0.15s_both]">Clarity, </span><br />
-                <span className="inline-block italic text-brand-rich/75 animate-[fadeInUp_0.6s_ease-out_0.3s_both]"> delivered.</span>
+                <span className={`inline-block text-brand-deep transition-all duration-700 delay-100 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>Clarity, </span><br />
+                <span className={`inline-block italic text-brand-rich/75 transition-all duration-700 delay-200 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}> delivered.</span>
               </h2>
 
               <p
-                className="text-lg md:text-xl text-brand-dark/60 max-w-2xl font-lora animate-[fadeInUp_0.6s_ease-out_0.45s_both]"
+                className={`text-lg md:text-xl text-brand-dark/60 max-w-2xl font-lora transition-all duration-700 delay-300 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
               > I sort the mess. You get something you can actually use.
               </p>
             </div>
@@ -54,7 +54,8 @@ const WhatYouGet: React.FC = () => {
               {deliverables.map((item, idx) => (
                 <div
                   key={idx}
-                  className={`mt-12 first:mt-0 animate-[fadeIn_0.5s_ease-out_${idx * 0.3}s_both]`}
+                  className="mt-12 first:mt-0"
+                  style={{ animation: isInView ? `fadeInUp 0.6s ease-out ${idx * 0.2}s both` : 'none', opacity: isInView ? undefined : 0 }}
                 >
                   <div className="h-px bg-brand-dark/10" />
                   <div className="flex items-start gap-6 md:gap-8 pt-12">
@@ -63,7 +64,7 @@ const WhatYouGet: React.FC = () => {
                     </div>
                     <div>
                       <h3 className="font-serif text-2xl text-brand-deep mb-2">{item.title}</h3>
-                      <p 
+                      <p
                         className="text-brand-deep/70 text-base leading-relaxed font-lora"
                         dangerouslySetInnerHTML={{ __html: item.body }}
                       />

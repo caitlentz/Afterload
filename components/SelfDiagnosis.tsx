@@ -62,6 +62,7 @@ const SymptomCard: React.FC<SymptomCardProps> = ({ item, index }) => {
     <div
       ref={inViewRef}
       className={`mb-4 md:mb-6 last:mb-0 relative ${isInView ? 'animate-[fadeInUp_0.6s_ease-out_both]' : 'opacity-0'}`}
+      style={isInView ? { animationDelay: `${index * 0.08}s` } : undefined}
     >
       <div className="group relative p-6 md:p-8 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-sm transition-all duration-500 hover:shadow-md hover:bg-white/50 overflow-hidden">
 
