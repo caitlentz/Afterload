@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense, Component, type ErrorInfo, type ReactNode } from 'react';
 import Hero from './components/Hero';
 import { User } from 'lucide-react';
 
@@ -7,6 +7,45 @@ import type { IntakeResponse } from './utils/diagnosticEngine';
 import type { PreviewResult } from './utils/previewEngine';
 import type { PaymentStatus } from './utils/database';
 
+// ─── Error Boundary for lazy-loaded chunks ─────────────────────────
+// Catches failed dynamic imports (stale hashes after deploy) and auto-reloads
+interface ChunkBoundaryProps { children: ReactNode }
+interface ChunkBoundaryState { hasError: boolean }
+
+class ChunkErrorBoundary extends Component<ChunkBoundaryProps, ChunkBoundaryState> {
+  state: ChunkBoundaryState = { hasError: false };
+  static getDerivedStateFromError(): ChunkBoundaryState { return { hasError: true }; }
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    if (error.message?.includes('dynamically imported module') || error.message?.includes('Loading chunk')) {
+      // Stale chunk — reload once to get fresh assets
+      const reloaded = sessionStorage.getItem('afterload_chunk_reload');
+      if (!reloaded) {
+        sessionStorage.setItem('afterload_chunk_reload', '1');
+        window.location.reload();
+      }
+    }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center px-6">
+          <div className="text-center max-w-sm">
+            <h2 className="font-serif text-2xl text-brand-dark mb-3">Something went wrong</h2>
+            <p className="text-brand-dark/50 text-sm mb-6">A new version may have been deployed. Try refreshing.</p>
+            <button
+              onClick={() => { sessionStorage.removeItem('afterload_chunk_reload'); window.location.reload(); }}
+              className="px-6 py-3 rounded-xl bg-brand-dark text-white text-xs font-bold uppercase tracking-widest hover:bg-brand-deep transition-colors"
+            >
+              Refresh Page
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Lazy-load views that aren't needed on initial page load
 const Intake = lazy(() => import('./components/Intake'));
 const DiagnosticPreview = lazy(() => import('./components/DiagnosticPreview'));
@@ -14,6 +53,7 @@ const PaymentGate = lazy(() => import('./components/PaymentGate'));
 const Login = lazy(() => import('./components/Login'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const AdminView = lazy(() => import('./components/AdminView'));
+const FullReport = lazy(() => import('./components/FullReport'));
 const SuccessScreen = lazy(() => import('./components/SuccessScreen'));
 const Background = lazy(() => import('./components/Background'));
 
@@ -21,7 +61,8 @@ enum View {
   HOME = 'HOME',
   DIAGNOSTIC_PREVIEW = 'DIAGNOSTIC_PREVIEW',
   PAYMENT = 'PAYMENT',
-  DEEP_INTAKE = 'DEEP_INTAKE',
+  CLARITY_SESSION = 'CLARITY_SESSION',
+  FULL_REPORT = 'FULL_REPORT',
   SUCCESS = 'SUCCESS',
   LOGIN = 'LOGIN',
   DASHBOARD = 'DASHBOARD',
@@ -66,6 +107,9 @@ export default function App() {
     paid: false,
     paidDate: null,
   });
+
+  // Clear chunk reload flag on successful mount
+  useEffect(() => { sessionStorage.removeItem('afterload_chunk_reload'); }, []);
 
   // Fetch payment status whenever we have an email (lazy-loads database module)
   useEffect(() => {
@@ -138,37 +182,30 @@ export default function App() {
 
     if (params.get('success') === 'true' || params.get('resume') === 'true') {
         window.history.replaceState({}, '', window.location.pathname);
-        // If logged in, go to dashboard; otherwise show success screen
-        if (userEmail) {
-          setCurrentView(View.DASHBOARD);
-        } else {
-          setCurrentView(View.SUCCESS);
-        }
+        setCurrentView(View.DASHBOARD);
         returnedFromStripe = true;
     }
     // Detect return from Stripe Buy Button (redirects to root with no params)
-    // If we flagged a payment as pending and user lands back on the site, route appropriately
     if (sessionStorage.getItem('afterload_payment_pending') === 'true') {
         sessionStorage.removeItem('afterload_payment_pending');
-        if (userEmail) {
-          setCurrentView(View.DASHBOARD);
-        } else {
-          setCurrentView(View.SUCCESS);
-        }
+        setCurrentView(View.DASHBOARD);
         returnedFromStripe = true;
     }
 
     // If returning from Stripe, poll payment status until webhook confirms it
-    if (returnedFromStripe && userEmail) {
+    if (returnedFromStripe) {
       const pollPayment = async (attempts: number) => {
+        const email = userEmail || localStorage.getItem('afterload_dev_email');
+        if (!email) return;
         const { getPaymentStatus } = await import('./utils/database');
-        const status = await getPaymentStatus(userEmail);
+        const status = await getPaymentStatus(email);
         setPaymentStatus(status);
         if (!status.paid && attempts > 0) {
           setTimeout(() => pollPayment(attempts - 1), 3000);
         }
       };
-      setTimeout(() => pollPayment(4), 2000);
+      // Fetch immediately, then poll
+      pollPayment(4);
     }
 
     // Secret admin route: ?admin=true
@@ -336,7 +373,8 @@ export default function App() {
                    <div className="px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase bg-brand-dark text-white shadow-sm flex items-center gap-2">
                      {activeView === View.DIAGNOSTIC_PREVIEW && "Preview"}
                      {activeView === View.PAYMENT && "Secure Checkout"}
-                     {activeView === View.DEEP_INTAKE && "Deep Dive"}
+                     {activeView === View.CLARITY_SESSION && "Clarity Session"}
+                     {activeView === View.FULL_REPORT && "Your Report"}
                      {activeView === View.SUCCESS && "Confirmed"}
                      {activeView === View.LOGIN && "Member Access"}
                    </div>
@@ -346,9 +384,10 @@ export default function App() {
       </header>
 
       <main className="relative z-10 w-full min-h-screen flex flex-col">
+        <ChunkErrorBoundary>
         <Suspense fallback={<div className="min-h-screen bg-brand-bg" />}>
             {activeView === View.HOME && (
-              <Hero onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} />
+              <Hero onDiagnosticComplete={handleInitialIntakeComplete} onLoginClick={() => navigate(View.LOGIN)} userEmail={userEmail} />
             )}
 
             {activeView === View.DASHBOARD && userEmail && (
@@ -358,7 +397,9 @@ export default function App() {
                   diagnosticResult={null}
                   paymentStatus={paymentStatus}
                   onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
-                  onResumeIntake={() => navigate(View.DEEP_INTAKE)}
+                  onViewFullReport={() => navigate(View.FULL_REPORT)}
+                  onDiagnosticComplete={handleInitialIntakeComplete}
+                  onResumeIntake={() => navigate(View.CLARITY_SESSION)}
                   onStartPayment={() => navigate(View.PAYMENT)}
                   onEditAnswers={handleEditAnswers}
                   onResetDiagnostic={handleResetDiagnostic}
@@ -368,16 +409,16 @@ export default function App() {
             )}
 
             {activeView === View.DIAGNOSTIC_PREVIEW && (
-              <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.DEEP_INTAKE)} />
+              <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.CLARITY_SESSION)} />
             )}
             {activeView === View.PAYMENT && (
               <PaymentGate
-                onBack={() => navigate(View.DEEP_INTAKE)}
+                onBack={() => navigate(View.CLARITY_SESSION)}
                 onSuccess={() => navigate(userEmail ? View.DASHBOARD : View.SUCCESS)}
                 cost={1200}
               />
             )}
-            {activeView === View.DEEP_INTAKE && (
+            {activeView === View.CLARITY_SESSION && (
               <Intake mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
             )}
             {activeView === View.SUCCESS && (
@@ -390,10 +431,14 @@ export default function App() {
             {activeView === View.LOGIN && (
               <Login onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
             )}
+            {activeView === View.FULL_REPORT && (
+              <FullReport intakeData={intakeData} onBack={() => navigate(View.DASHBOARD)} />
+            )}
             {activeView === View.ADMIN && (
               <AdminView />
             )}
         </Suspense>
+        </ChunkErrorBoundary>
       </main>
     </div>
   );

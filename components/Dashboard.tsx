@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import {
   ArrowRight,
   LogOut,
@@ -21,12 +21,16 @@ import {
 import { IntakeResponse, DiagnosticResult } from '../utils/diagnosticEngine';
 import { PaymentStatus } from '../utils/database';
 
+const Intake = lazy(() => import('./Intake'));
+
 interface DashboardProps {
   userEmail: string;
   intakeData: IntakeResponse | null;
   diagnosticResult: DiagnosticResult | null;
   paymentStatus: PaymentStatus;
   onViewReport: () => void;
+  onViewFullReport: () => void;
+  onDiagnosticComplete: (answers: IntakeResponse) => void;
   onResumeIntake: () => void;
   onStartPayment: () => void;
   onEditAnswers: () => void;
@@ -61,6 +65,16 @@ const ANSWER_LABELS: Record<string, string> = {
   delegation_fear: 'Delegation Fear',
   identity_attachment: 'Identity Attachment',
   team_capability: 'Team Capability',
+  years_in_business: 'Years in Business',
+  founder_operational_role: 'Founder Role',
+  founder_responsibilities: 'Founder Handles',
+  has_delegation_support: 'Delegation Support',
+  pricing_confidence: 'Pricing Confidence',
+  pricing_last_raised: 'Last Price Increase',
+  revenue_range: 'Revenue Range',
+  profitability_gut_check: 'Profitability',
+  expense_awareness: 'Expense Awareness',
+  average_service_rate: 'Service Rate',
 };
 
 // Keys to skip showing (they're displayed elsewhere or are meta)
@@ -78,11 +92,11 @@ function getContextMessage(stage: string, firstName: string): string {
     case 'fresh':
       return "You're in the right place. Let's figure out what's actually going on.";
     case 'preview_ready':
-      return "We found some things. Take a look when you're ready — then continue to the deep dive.";
+      return "We found some things. Take a look when you're ready — then continue to the clarity session.";
     case 'deep_complete':
       return "All questions answered. Complete your payment to start the report.";
     case 'paid':
-      return "Everything is locked in. Your report is on its way.";
+      return "Everything is locked in. Your report will appear here when it's ready.";
     default:
       return "Here's where things stand.";
   }
@@ -94,6 +108,8 @@ export default function Dashboard({
   diagnosticResult,
   paymentStatus,
   onViewReport,
+  onViewFullReport,
+  onDiagnosticComplete,
   onResumeIntake,
   onStartPayment,
   onEditAnswers,
@@ -105,6 +121,7 @@ export default function Dashboard({
   const [showAnswers, setShowAnswers] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editName, setEditName] = useState('');
+  const [reportReleased, setReportReleased] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const hasReport = !!diagnosticResult;
@@ -128,7 +145,7 @@ export default function Dashboard({
 
   const stages = [
     { id: 'fresh', label: 'Initial Intake', icon: FileText },
-    { id: 'preview_ready', label: 'Preview & Deep Dive', icon: Activity },
+    { id: 'preview_ready', label: 'Preview & Clarity Session', icon: Activity },
     { id: 'deep_complete', label: 'Payment', icon: Shield },
     { id: 'paid', label: 'Report', icon: Zap },
   ];
@@ -167,6 +184,15 @@ export default function Dashboard({
     setIsEditingName(false);
     setEditName('');
   };
+
+  // Check if admin has released the full report for this client
+  useEffect(() => {
+    if (stage === 'paid') {
+      import('../utils/database').then(({ checkReportReleased }) =>
+        checkReportReleased(userEmail).then(setReportReleased)
+      );
+    }
+  }, [stage, userEmail]);
 
   const greeting = getGreeting();
   const contextMessage = getContextMessage(stage, firstName);
@@ -351,34 +377,22 @@ export default function Dashboard({
         <div
           className="mb-8 animate-[fadeInUp_0.6s_ease-out_0.2s_both]"
         >
-          {/* STAGE: Fresh — No intake yet */}
+          {/* STAGE: Fresh — Inline intake questions */}
           {stage === 'fresh' && (
-            <button
-              onClick={onResumeIntake}
-              className="w-full text-left bg-sage-300/15 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] border border-white/80 shadow-[0_2px_8px_-3px_rgba(36,14,56,0.15)] hover:shadow-lg transition-all group relative overflow-hidden"
-            >
-              <div className="relative z-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <Sparkles size={16} className="text-brand-mid" />
-                  <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-mid">
-                    Ready When You Are
-                  </span>
-                </div>
-                <h2 className="font-serif text-2xl md:text-3xl text-brand-dark mb-2">
-                  Start Your Diagnostic
-                </h2>
-                <p className="text-brand-dark/50 text-sm mb-6 max-w-md font-lora">
-                  7 quick questions. Multiple choice. No essays, no overthinking.
-                  We just need enough to see the shape of the problem.
-                </p>
-                <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-dark/70 group-hover:text-brand-dark group-hover:gap-3 transition-all">
-                  Let's Go <ArrowRight size={14} />
-                </div>
+            <Suspense fallback={
+              <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] border border-white/80 animate-pulse">
+                <div className="h-8 w-48 bg-brand-dark/5 rounded mb-4" />
+                <div className="h-4 w-64 bg-brand-dark/5 rounded" />
               </div>
-            </button>
+            }>
+              {/* Override Intake's full-page styling when embedded in Dashboard */}
+              <div className="dashboard-inline-intake [&>section]:min-h-0 [&>section]:py-0 [&>section]:px-0">
+                <Intake onComplete={onDiagnosticComplete} userEmail={userEmail} />
+              </div>
+            </Suspense>
           )}
 
-          {/* STAGE: Preview ready — intake done, deep dive not started */}
+          {/* STAGE: Preview ready — intake done, clarity session not started */}
           {stage === 'preview_ready' && (
             <div className="space-y-4">
               <button
@@ -413,7 +427,7 @@ export default function Dashboard({
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h3 className="font-serif text-xl mb-1">Continue to Deep Dive</h3>
+                    <h3 className="font-serif text-xl mb-1">Continue to Clarity Session</h3>
                     <p className="text-white/60 text-sm font-lora">
                       25 targeted questions · About 10 minutes · This is where we find the real answers
                     </p>
@@ -427,7 +441,7 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* STAGE: Deep dive complete — all questions answered, not paid */}
+          {/* STAGE: Clarity session complete — all questions answered, not paid */}
           {stage === 'deep_complete' && (
             <div className="space-y-4">
               <div className="bg-green-50/80 backdrop-blur-md p-4 rounded-2xl border border-green-200/60 flex items-center gap-3">
@@ -435,7 +449,7 @@ export default function Dashboard({
                   <CheckCircle size={16} />
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-green-800">Deep dive complete</div>
+                  <div className="text-sm font-medium text-green-800">Clarity session complete</div>
                   <div className="text-[11px] text-green-600/70">
                     All questions answered. One step left.
                   </div>
@@ -483,28 +497,68 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* STAGE: Paid — report in progress */}
+          {/* STAGE: Paid — report in progress or released */}
           {stage === 'paid' && (
-            <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
-                  <CheckCircle size={20} />
+            <div className="space-y-4">
+              {/* Report released — show the big CTA */}
+              {reportReleased && (
+                <button
+                  onClick={onViewFullReport}
+                  className="w-full text-left bg-brand-dark text-white p-8 md:p-10 rounded-[2rem] shadow-lg hover:shadow-xl transition-all group relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-4">
+                      <Sparkles size={16} className="text-white/60" />
+                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/60">
+                        Report Ready
+                      </span>
+                    </div>
+                    <h2 className="font-serif text-2xl md:text-3xl text-white mb-2">
+                      View Your Business Clarity Report
+                    </h2>
+                    <p className="text-white/60 text-sm mb-6 max-w-md font-lora">
+                      Your full report is ready. Constraint analysis, delegation matrix, roadmap — it's all here.
+                    </p>
+                    <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/70 group-hover:text-white group-hover:gap-3 transition-all">
+                      Open Report <ArrowRight size={14} />
+                    </div>
+                  </div>
+                </button>
+              )}
+
+              {/* Waiting card — shows when report isn't released yet */}
+              {!reportReleased && (
+                <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
+                      <CheckCircle size={20} />
+                    </div>
+                    <div>
+                      <h2 className="font-serif text-xl text-brand-dark">Everything's in.</h2>
+                      <p className="text-brand-dark/40 text-xs">Answers received · Payment confirmed · Report in progress</p>
+                    </div>
+                  </div>
+                  <p className="text-brand-dark/60 text-sm font-lora leading-relaxed mb-6">
+                    Your Business Clarity Report is being prepared and will appear here when it's ready.
+                    You'll receive an email at <span className="font-bold text-brand-dark">{userEmail}</span> when it's available.
+                  </p>
                 </div>
-                <div>
-                  <h2 className="font-serif text-xl text-brand-dark">Everything's in.</h2>
-                  <p className="text-brand-dark/40 text-xs">Answers received · Payment confirmed · Report in progress</p>
-                </div>
-              </div>
-              <p className="text-brand-dark/60 text-sm font-lora leading-relaxed mb-6">
-                Your Business Clarity Report will be sent to{' '}
-                <span className="font-bold text-brand-dark">{userEmail}</span> within 5–7 business days.
-              </p>
+              )}
+
+              {/* Preview link */}
               {intakeData && (
                 <button
                   onClick={onViewReport}
-                  className="text-xs font-bold uppercase tracking-widest text-brand-mid hover:text-brand-deep transition-colors flex items-center gap-2"
+                  className="w-full text-left bg-white/50 backdrop-blur-xl p-5 rounded-2xl border border-white/60 hover:bg-white/70 transition-all group"
                 >
-                  Review Preview Report <ChevronRight size={14} />
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Activity size={16} className="text-brand-dark/30" />
+                      <span className="text-sm text-brand-dark/50 font-lora">Review your preview report</span>
+                    </div>
+                    <ChevronRight size={16} className="text-brand-dark/20 group-hover:text-brand-mid transition-colors" />
+                  </div>
                 </button>
               )}
             </div>
