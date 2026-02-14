@@ -63,9 +63,12 @@ Deno.serve(async (req: Request) => {
     }
 
     // Determine payment type based on amount
-    // $300 deposit = 30000 cents, $900 balance = 90000 cents
-    let paymentType: "deposit" | "balance" = "deposit";
-    if (amountTotal >= 85000) {
+    // Legacy: $300 deposit = 30000 cents, $900 balance = 90000 cents
+    // Current: $1,200 full = 120000 cents
+    let paymentType: "deposit" | "balance" | "full" = "full";
+    if (amountTotal <= 35000) {
+      paymentType = "deposit";
+    } else if (amountTotal >= 85000 && amountTotal < 115000) {
       paymentType = "balance";
     }
 

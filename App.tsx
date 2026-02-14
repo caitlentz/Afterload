@@ -104,6 +104,8 @@ export default function App() {
     balancePaid: false,
     depositDate: null,
     balanceDate: null,
+    paid: false,
+    paidDate: null,
   });
 
   // Clear chunk reload flag on successful mount
@@ -180,10 +182,6 @@ export default function App() {
 
     if (params.get('success') === 'true' || params.get('resume') === 'true') {
         window.history.replaceState({}, '', window.location.pathname);
-        // Always go to Dashboard — auth will resolve and populate userEmail.
-        // The Dashboard renders conditionally on userEmail, and the auth listener
-        // will set it once loaded. If they're truly not logged in, the auth check
-        // in effect #2 will handle it.
         setCurrentView(View.DASHBOARD);
         returnedFromStripe = true;
     }
@@ -194,20 +192,20 @@ export default function App() {
         returnedFromStripe = true;
     }
 
-    // If returning from Stripe, re-fetch payment status after a delay (webhook may still be processing)
+    // If returning from Stripe, poll payment status until webhook confirms it
     if (returnedFromStripe) {
-      const fetchPayment = () => {
+      const pollPayment = async (attempts: number) => {
         const email = userEmail || localStorage.getItem('afterload_dev_email');
-        if (email) {
-          import('./utils/database').then(({ getPaymentStatus }) =>
-            getPaymentStatus(email).then(setPaymentStatus)
-          );
+        if (!email) return;
+        const { getPaymentStatus } = await import('./utils/database');
+        const status = await getPaymentStatus(email);
+        setPaymentStatus(status);
+        if (!status.paid && attempts > 0) {
+          setTimeout(() => pollPayment(attempts - 1), 3000);
         }
       };
-      // Fetch immediately, then again after webhook has time to process
-      fetchPayment();
-      setTimeout(fetchPayment, 3000);
-      setTimeout(fetchPayment, 8000);
+      // Fetch immediately, then poll
+      pollPayment(4);
     }
 
     // Secret admin route: ?admin=true
@@ -245,13 +243,23 @@ export default function App() {
       const track = determineTrack(answers.business_type);
       const intakeId = await saveIntakeResponse(email, 'initial', answers, track);
       saveDiagnosticResult(email, 'preview', preview, intakeId || undefined);
+
+      // Send magic link for account creation (non-blocking, fire-and-forget)
+      if (!userEmail) {
+        import('./utils/supabase').then(({ supabase }) => {
+          supabase.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: window.location.origin },
+          });
+        });
+      }
     }
   };
 
   const handleDeepIntakeComplete = async (finalAnswers: any) => {
     const merged = { ...intakeData, ...finalAnswers };
     setIntakeData(merged);
-    navigate(View.SUCCESS);
+    navigate(View.PAYMENT);
 
     // Save to Supabase (non-blocking)
     const email = merged.email || userEmail;
@@ -401,13 +409,13 @@ export default function App() {
             )}
 
             {activeView === View.DIAGNOSTIC_PREVIEW && (
-              <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.PAYMENT)} />
+              <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.CLARITY_SESSION)} />
             )}
             {activeView === View.PAYMENT && (
               <PaymentGate
-                onBack={() => navigate(View.DIAGNOSTIC_PREVIEW)}
+                onBack={() => navigate(View.CLARITY_SESSION)}
                 onSuccess={() => navigate(userEmail ? View.DASHBOARD : View.SUCCESS)}
-                cost={300}
+                cost={1200}
               />
             )}
             {activeView === View.CLARITY_SESSION && (

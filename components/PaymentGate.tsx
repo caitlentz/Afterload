@@ -49,7 +49,7 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
             className="flex items-center gap-2 text-brand-dark/40 hover:text-brand-dark transition-colors text-xs font-bold uppercase tracking-widest"
           >
             <ArrowLeft size={14} />
-            <span>Back to Preview</span>
+            <span>Back</span>
           </button>
         </div>
 
@@ -75,15 +75,11 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
           <div className="p-8 md:p-12 text-center">
             <div className="inline-flex flex-col items-center">
               <div className="flex items-baseline gap-2 mb-2">
-                <span className="font-serif text-5xl text-brand-dark">$300</span>
-                <span className="text-xs font-bold uppercase tracking-widest text-brand-dark/40">deposit</span>
+                <span className="font-serif text-5xl text-brand-dark">$1,200</span>
               </div>
               <div className="h-px w-12 bg-brand-dark/10 my-3" />
-              <p className="text-[11px] uppercase tracking-widest text-brand-dark/40 mb-1">
-                Total: $1,200
-              </p>
-              <p className="text-[10px] text-brand-dark/30 italic">
-                $900 balance due before delivery
+              <p className="text-[11px] uppercase tracking-widest text-brand-dark/40">
+                One-time payment
               </p>
             </div>
           </div>
@@ -111,7 +107,7 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
           <div className="px-8 md:px-12 pb-6">
             <div className="w-full flex justify-center">
               <StripeBuyButton
-                buy-button-id="buy_btn_1SvrmjAw6xE6hpmR5znaLuMI"
+                buy-button-id="buy_btn_1SvmF5Aw6xE6hpmRVOFHQDde"
                 publishable-key="pk_live_51RKvWMAw6xE6hpmRkoExos4LVjkBKK1lnRONIYbE5YmjjOTG74wTZZaG4NtORAkHa4CwIDlVECpF7sIbpIOgAt5h00FZUbgWIL"
               />
             </div>
