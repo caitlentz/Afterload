@@ -128,34 +128,6 @@ export async function saveAdminNote(clientId: string, note: string) {
 // Checks the payments table for this user's deposit & balance status.
 // Returns { depositPaid, balancePaid, depositDate, balanceDate }
 // ------------------------------------------------------------------
-// ------------------------------------------------------------------
-// CHECK REPORT RELEASED
-// Checks admin_notes for the [report-released] tag
-// ------------------------------------------------------------------
-export async function checkReportReleased(email: string): Promise<boolean> {
-  try {
-    const { data: client } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (!client) return false;
-
-    const { data: notes, error } = await supabase
-      .from('admin_notes')
-      .select('note')
-      .eq('client_id', client.id);
-
-    if (error || !notes) return false;
-
-    return notes.some((n: any) => n.note?.includes('[report-released]'));
-  } catch (e) {
-    console.error('checkReportReleased error:', e);
-    return false;
-  }
-}
-
 export interface PaymentStatus {
   depositPaid: boolean;
   balancePaid: boolean;
