@@ -62,34 +62,96 @@ alter table public.intake_responses enable row level security;
 alter table public.diagnostic_results enable row level security;
 alter table public.admin_notes enable row level security;
 
--- Policy: Users can read/write their own data (matched by email from auth.jwt)
-create policy "Users can read own client record"
-  on public.clients for select
-  using (email = auth.jwt() ->> 'email');
+-- ─── OPEN policies for client-facing tables ─────────────────────────
+-- The landing-page intake runs BEFORE the user logs in, so all
+-- client-facing tables allow anonymous access for INSERT, SELECT,
+-- and UPDATE. This is required because:
+--   • The Supabase JS client uses upsert (INSERT + ON CONFLICT UPDATE)
+--   • After insert, the code does .select('id') to get the new row's ID
+--   • Admin access is handled via SECURITY DEFINER RPCs (see below)
+--
+-- Security note: admin_notes has NO public policies (service role only).
+-- The payments table has its own auth-restricted SELECT policy.
 
-create policy "Users can insert own client record"
-  on public.clients for insert
-  with check (email = auth.jwt() ->> 'email');
+-- clients: full anonymous access (for upsert + select)
+create policy "Anyone can insert client record"
+  on public.clients for insert with check (true);
+create policy "Anyone can select client record"
+  on public.clients for select using (true);
+create policy "Anyone can update client record"
+  on public.clients for update using (true);
 
-create policy "Users can update own client record"
-  on public.clients for update
-  using (email = auth.jwt() ->> 'email');
+-- intake_responses: anonymous insert + select
+create policy "Anyone can insert intake response"
+  on public.intake_responses for insert with check (true);
+create policy "Anyone can select intake responses"
+  on public.intake_responses for select using (true);
 
-create policy "Users can read own intake responses"
-  on public.intake_responses for select
-  using (email = auth.jwt() ->> 'email');
+-- diagnostic_results: anonymous insert + select
+create policy "Anyone can insert diagnostic result"
+  on public.diagnostic_results for insert with check (true);
+create policy "Anyone can select diagnostic results"
+  on public.diagnostic_results for select using (true);
 
-create policy "Users can insert own intake responses"
-  on public.intake_responses for insert
-  with check (email = auth.jwt() ->> 'email');
+-- ─── ADMIN notes ────────────────────────────────────────────────────
+-- admin_notes: only accessible via service role or the admin RPC below.
+-- No direct public policies.
 
-create policy "Users can read own diagnostic results"
-  on public.diagnostic_results for select
-  using (email = auth.jwt() ->> 'email');
+-- ─── ADMIN RPC: fetch all clients with related data ─────────────────
+-- Runs as SECURITY DEFINER so it bypasses RLS (like using the service role).
+-- Called from the admin dashboard after PIN verification.
+create or replace function public.admin_fetch_all_clients()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return (
+    select coalesce(jsonb_agg(row_to_json(c)::jsonb || jsonb_build_object(
+      'intake_responses', coalesce((
+        select jsonb_agg(row_to_json(ir))
+        from intake_responses ir where ir.client_id = c.id
+      ), '[]'::jsonb),
+      'diagnostic_results', coalesce((
+        select jsonb_agg(row_to_json(dr))
+        from diagnostic_results dr where dr.client_id = c.id
+      ), '[]'::jsonb),
+      'admin_notes', coalesce((
+        select jsonb_agg(row_to_json(an))
+        from admin_notes an where an.client_id = c.id
+      ), '[]'::jsonb)
+    )), '[]'::jsonb)
+    from clients c
+    order by c.created_at desc
+  );
+end;
+$$;
 
-create policy "Users can insert own diagnostic results"
-  on public.diagnostic_results for insert
-  with check (email = auth.jwt() ->> 'email');
+-- Admin RPC: fetch all payments
+create or replace function public.admin_fetch_all_payments()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  return (
+    select coalesce(jsonb_agg(row_to_json(p)), '[]'::jsonb)
+    from payments p
+    order by p.created_at desc
+  );
+end;
+$$;
 
--- Admin notes: only accessible via service role (not from client-side)
--- No public policies — you'll read these from the Supabase dashboard or an admin route
+-- Admin RPC: save admin note (bypasses RLS on admin_notes)
+create or replace function public.admin_save_note(p_client_id uuid, p_note text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  insert into admin_notes (client_id, note) values (p_client_id, p_note);
+end;
+$$;
