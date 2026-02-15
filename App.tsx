@@ -121,10 +121,21 @@ export default function App() {
   };
 
   // Fetch payment status whenever we have an email (lazy-loads database module)
+  // Also check intake email as fallback (Stripe checkout may use a different email)
   useEffect(() => {
-    if (userEmail) {
-      refreshPaymentStatus(userEmail);
-    }
+    if (!userEmail) return;
+    const checkPayment = async () => {
+      const status = await refreshPaymentStatus(userEmail);
+      // If not paid via auth email, also try the intake form email
+      if (!status.paid && intakeData?.email && intakeData.email.toLowerCase() !== userEmail.toLowerCase()) {
+        const { getPaymentStatus } = await import('./utils/database');
+        const altStatus = await getPaymentStatus(intakeData.email);
+        if (altStatus.paid) {
+          setPaymentStatus(altStatus);
+        }
+      }
+    };
+    checkPayment();
   }, [userEmail]);
 
   // 2. Supabase Auth Listener (lazy-loads supabase module, deferred to not compete with first paint)
@@ -143,15 +154,18 @@ export default function App() {
             setCurrentView(View.DASHBOARD);
             window.history.replaceState({}, '', window.location.pathname);
           }
+          // If user returned from Stripe and now has auth, upgrade to Dashboard
+          setCurrentView(prev => prev === View.SUCCESS ? View.DASHBOARD : prev);
         } else {
           // No real session — if we're stuck on a view that needs auth, go home
-          // BUT don't override if user just returned from Stripe payment
-          const params = new URLSearchParams(window.location.search);
-          const returningFromStripe = params.get('success') === 'true' || sessionStorage.getItem('afterload_payment_pending') === 'true';
+          // BUT don't override if user returned from Stripe (they'll be on SUCCESS already)
           const savedView = localStorage.getItem(STORAGE.VIEW);
-          if (savedView === View.DASHBOARD && !returningFromStripe) {
-            setCurrentView(View.HOME);
-            localStorage.setItem(STORAGE.VIEW, View.HOME);
+          if (savedView === View.DASHBOARD) {
+            setCurrentView(prev => {
+              if (prev === View.SUCCESS) return prev; // Keep SUCCESS for Stripe returns
+              localStorage.setItem(STORAGE.VIEW, View.HOME);
+              return View.HOME;
+            });
           }
         }
         setAuthReady(true);
@@ -182,17 +196,26 @@ export default function App() {
   // 3. Handle Stripe Redirects, "Resume" Links, and Admin Access (detection only)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    let stripeReturn = false;
 
     if (params.get('success') === 'true' || params.get('resume') === 'true') {
         window.history.replaceState({}, '', window.location.pathname);
-        setCurrentView(View.DASHBOARD);
-        setReturnedFromStripe(true);
+        stripeReturn = true;
     }
     // Detect return from Stripe Buy Button (redirects to root with no params)
     if (sessionStorage.getItem('afterload_payment_pending') === 'true') {
         sessionStorage.removeItem('afterload_payment_pending');
-        setCurrentView(View.DASHBOARD);
-        setReturnedFromStripe(true);
+        stripeReturn = true;
+    }
+
+    if (stripeReturn) {
+      setReturnedFromStripe(true);
+      // If user has auth, go to Dashboard. Otherwise go to Success screen.
+      // We check localStorage since Supabase session hasn't loaded yet.
+      const hasDevEmail = !!localStorage.getItem('afterload_dev_email');
+      // Default to SUCCESS for unauthenticated users — the auth listener
+      // will upgrade to DASHBOARD if a session is found.
+      setCurrentView(hasDevEmail ? View.DASHBOARD : View.SUCCESS);
     }
 
     // Secret admin route: ?admin=true
@@ -204,14 +227,27 @@ export default function App() {
   // 3b. Poll payment status after Stripe return — waits for email to be available
   useEffect(() => {
     if (!returnedFromStripe) return;
-    const email = userEmail || localStorage.getItem('afterload_dev_email');
+    // Try multiple email sources: auth, dev email, or intake form email
+    const intakeEmail = (() => {
+      try {
+        const saved = localStorage.getItem(STORAGE.INTAKE);
+        return saved ? JSON.parse(saved).email : null;
+      } catch { return null; }
+    })();
+    const email = userEmail || localStorage.getItem('afterload_dev_email') || intakeEmail;
     if (!email) return; // Will re-run when userEmail becomes available
 
     let cancelled = false;
     const pollPayment = async (attempts: number) => {
       if (cancelled) return;
       const status = await refreshPaymentStatus(email);
-      if (status.paid || attempts <= 0) {
+      if (status.paid) {
+        setReturnedFromStripe(false);
+        // If user has auth, upgrade to Dashboard to show paid state
+        if (userEmail) {
+          setCurrentView(View.DASHBOARD);
+        }
+      } else if (attempts <= 0) {
         setReturnedFromStripe(false);
       } else {
         setTimeout(() => pollPayment(attempts - 1), 3000);
@@ -222,15 +258,20 @@ export default function App() {
     return () => { cancelled = true; };
   }, [returnedFromStripe, userEmail]);
 
-  // 4. Preload Stripe script when user approaches payment
+  // 4. Eagerly load Stripe script when user approaches payment
+  // Instead of just preloading, actually inject the <script> tag early so the
+  // Buy Button web component is already registered when PaymentGate mounts.
   useEffect(() => {
-    if (currentView === View.CLARITY_SESSION || currentView === View.DIAGNOSTIC_PREVIEW) {
-      if (!document.querySelector('link[href="https://js.stripe.com/v3/buy-button.js"]')) {
-        const link = document.createElement('link');
-        link.rel = 'preload';
-        link.href = 'https://js.stripe.com/v3/buy-button.js';
-        link.as = 'script';
-        document.head.appendChild(link);
+    if (
+      currentView === View.CLARITY_SESSION ||
+      currentView === View.DIAGNOSTIC_PREVIEW ||
+      currentView === View.PAYMENT
+    ) {
+      if (!document.querySelector('script[src="https://js.stripe.com/v3/buy-button.js"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://js.stripe.com/v3/buy-button.js';
+        script.async = true;
+        document.head.appendChild(script);
       }
     }
   }, [currentView]);

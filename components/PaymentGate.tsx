@@ -22,11 +22,12 @@ const deliverables = [
 export default function PaymentGate({ onBack, onSuccess, email }: PaymentGateProps) {
 
   useEffect(() => {
+    // Script may already be injected by App.tsx preload — only add if missing
     if (!document.querySelector('script[src="https://js.stripe.com/v3/buy-button.js"]')) {
       const script = document.createElement('script');
       script.src = 'https://js.stripe.com/v3/buy-button.js';
       script.async = true;
-      document.body.appendChild(script);
+      document.head.appendChild(script);
     }
 
     // Flag that user entered the payment flow — used to detect Stripe redirect-back
