@@ -1,7 +1,9 @@
 -- Fix admin_fetch_all_clients: GROUP BY bug
 -- The previous version referenced c.created_at without including it in GROUP BY
 
-CREATE OR REPLACE FUNCTION public.admin_fetch_all_clients()
+DROP FUNCTION IF EXISTS public.admin_fetch_all_clients();
+
+CREATE FUNCTION public.admin_fetch_all_clients()
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
