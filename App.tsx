@@ -161,14 +161,14 @@ export default function App() {
           setCurrentView(prev => prev === View.SUCCESS ? View.DASHBOARD : prev);
         } else {
           // No real session — if we're stuck on a view that needs auth, go home
-          // BUT don't override if user returned from Stripe (they'll be on SUCCESS already)
-          const savedView = localStorage.getItem(STORAGE.VIEW);
-          if (savedView === View.DASHBOARD) {
-            setCurrentView(prev => {
-              if (prev === View.SUCCESS) return prev; // Keep SUCCESS for Stripe returns
+          // BUT don't override if user just returned from Stripe
+          const isStripeReturn = sessionStorage.getItem('afterload_stripe_return') === 'true';
+          if (!isStripeReturn) {
+            const savedView = localStorage.getItem(STORAGE.VIEW);
+            if (savedView === View.DASHBOARD) {
               localStorage.setItem(STORAGE.VIEW, View.HOME);
-              return View.HOME;
-            });
+              setCurrentView(View.HOME);
+            }
           }
         }
         setAuthReady(true);
@@ -213,6 +213,8 @@ export default function App() {
 
     if (stripeReturn) {
       setReturnedFromStripe(true);
+      // Flag so the auth listener (which runs async) won't override our view
+      sessionStorage.setItem('afterload_stripe_return', 'true');
       // If user has auth, go to Dashboard. Otherwise go to Success screen.
       // We check localStorage since Supabase session hasn't loaded yet.
       const hasDevEmail = !!localStorage.getItem('afterload_dev_email');
@@ -246,12 +248,14 @@ export default function App() {
       const status = await refreshPaymentStatus(email);
       if (status.paid) {
         setReturnedFromStripe(false);
+        sessionStorage.removeItem('afterload_stripe_return');
         // If user has auth, upgrade to Dashboard to show paid state
         if (userEmail) {
           setCurrentView(View.DASHBOARD);
         }
       } else if (attempts <= 0) {
         setReturnedFromStripe(false);
+        sessionStorage.removeItem('afterload_stripe_return');
       } else {
         setTimeout(() => pollPayment(attempts - 1), 3000);
       }
