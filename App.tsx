@@ -160,14 +160,21 @@ export default function App() {
           // If user returned from Stripe and now has auth, upgrade to Dashboard
           setCurrentView(prev => prev === View.SUCCESS ? View.DASHBOARD : prev);
         } else {
-          // No real session — if we're stuck on a view that needs auth, go home
-          // BUT don't override if user just returned from Stripe
-          const isStripeReturn = sessionStorage.getItem('afterload_stripe_return') === 'true';
-          if (!isStripeReturn) {
-            const savedView = localStorage.getItem(STORAGE.VIEW);
-            if (savedView === View.DASHBOARD) {
-              localStorage.setItem(STORAGE.VIEW, View.HOME);
-              setCurrentView(View.HOME);
+          // No Supabase session — but if we have a localStorage email
+          // (from password login), keep using it
+          const devEmail = localStorage.getItem('afterload_dev_email');
+          if (devEmail) {
+            setUserEmail(devEmail);
+          } else {
+            // Truly no auth — if we're stuck on Dashboard, go home
+            // BUT don't override if user just returned from Stripe
+            const isStripeReturn = sessionStorage.getItem('afterload_stripe_return') === 'true';
+            if (!isStripeReturn) {
+              const savedView = localStorage.getItem(STORAGE.VIEW);
+              if (savedView === View.DASHBOARD) {
+                localStorage.setItem(STORAGE.VIEW, View.HOME);
+                setCurrentView(View.HOME);
+              }
             }
           }
         }
@@ -183,9 +190,12 @@ export default function App() {
               window.history.replaceState({}, '', window.location.pathname);
             }
           }
-        } else {
+        } else if (_event === 'SIGNED_OUT') {
+          // Only clear email on explicit sign-out, not on missing session
           setUserEmail(null);
+          localStorage.removeItem('afterload_dev_email');
         }
+        // If no session but we have a localStorage email, keep using it
       });
       subscription = data.subscription;
     });
