@@ -2,13 +2,16 @@ import React, { lazy, Suspense } from 'react';
 import { ArrowRight, ArrowDown } from 'lucide-react';
 import type { IntakeResponse } from '../utils/diagnosticEngine';
 
-// Lazy load ALL below-fold sections + Intake (Intake imports framer-motion)
+// Direct imports for homepage sections — these are small (< 20KB total)
+// and must render without extra network round-trips on mobile
+import SelfDiagnosis from './SelfDiagnosis';
+import AntiPitch from './AntiPitch';
+import Delivery from './Delivery';
+import FAQ from './FAQ';
+import Footer from './Footer';
+
+// Only lazy-load Intake (imports framer-motion, 32KB+ chunk)
 const Intake = lazy(() => import('./Intake'));
-const SelfDiagnosis = lazy(() => import('./SelfDiagnosis'));
-const Delivery = lazy(() => import('./Delivery'));
-const AntiPitch = lazy(() => import('./AntiPitch'));
-const FAQ = lazy(() => import('./FAQ'));
-const Footer = lazy(() => import('./Footer'));
 
 interface HeroProps {
   onDiagnosticComplete: (answers: IntakeResponse) => void;
@@ -17,21 +20,6 @@ interface HeroProps {
   key?: React.Key;
 }
 
-function SectionPlaceholder() {
-  return (
-    <div className="w-full flex flex-col items-center gap-24 py-24 px-4 animate-pulse">
-      <div className="w-full max-w-2xl flex flex-col items-center gap-6">
-        <div className="h-12 w-3/4 rounded-lg bg-brand-dark/5" />
-        <div className="h-4 w-1/2 rounded bg-brand-dark/5" />
-        <div className="h-4 w-2/3 rounded bg-brand-dark/5" />
-      </div>
-      <div className="w-full max-w-2xl flex flex-col items-center gap-6">
-        <div className="h-12 w-2/3 rounded-lg bg-brand-dark/5" />
-        <div className="h-4 w-1/2 rounded bg-brand-dark/5" />
-      </div>
-    </div>
-  );
-}
 
 export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: HeroProps) {
   const handleScrollToIntake = () => {
@@ -154,20 +142,16 @@ export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: 
         </div>
       </section>
 
-      <Suspense fallback={<SectionPlaceholder />}>
-        <SelfDiagnosis onStartIntake={handleScrollToIntake} />
-        <AntiPitch />
-        <Delivery />
-        <FAQ />
-      </Suspense>
+      <SelfDiagnosis onStartIntake={handleScrollToIntake} />
+      <AntiPitch />
+      <Delivery />
+      <FAQ />
 
       <Suspense fallback={<div className="min-h-[60vh]" />}>
         <Intake onComplete={onDiagnosticComplete} userEmail={userEmail} />
       </Suspense>
 
-      <Suspense fallback={null}>
-        <Footer onLoginClick={onLoginClick} />
-      </Suspense>
+      <Footer onLoginClick={onLoginClick} />
     </div>
   );
 }
