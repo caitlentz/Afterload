@@ -1,5 +1,4 @@
 import React from 'react';
-import { useInView } from '../utils/useInView';
 import { Map, Zap, ArrowRight } from 'lucide-react';
 
 const deliverables = [
@@ -21,30 +20,28 @@ const deliverables = [
 ];
 
 const WhatYouGet: React.FC = () => {
-  const { ref: inViewRef, isInView } = useInView();
   return (
     <section className="py-24 px-6 bg-transparent relative z-10">
       <div className="max-w-4xl mx-auto">
         <div
-          ref={inViewRef}
-          className={`bg-sage-300/15 rounded-[2.5rem] p-8 md:p-16 border border-white/80 shadow-[0_2px_8px_-3px_rgba(36,14,56,0.3)] ${isInView ? 'animate-[scaleIn_0.8s_ease-out_both]' : 'opacity-0'}`}
+          className="bg-sage-300/15 rounded-[2.5rem] p-8 md:p-16 border border-white/80 shadow-[0_2px_8px_-3px_rgba(36,14,56,0.3)] animate-[scaleIn_0.8s_ease-out_both]"
         >
           <div className="max-w-3xl mx-auto">
             {/* Heading Section */}
             <div className="mb-20">
               <div className="mb-4">
-                <span className={`text-xs font-bold tracking-[0.2em] text-brand-mid/70 uppercase transition-all duration-700 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}>
+                <span className="text-xs font-bold tracking-[0.2em] text-brand-mid/70 uppercase">
                   Your Assets
                 </span>
               </div>
 
               <h2 className="font-serif text-5xl md:text-7xl text-brand-dark mb-6 leading-tight">
-                <span className={`inline-block text-brand-deep transition-all duration-700 delay-100 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}>Clarity, </span><br />
-                <span className={`inline-block italic text-brand-rich/75 transition-all duration-700 delay-200 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}> delivered.</span>
+                <span className="inline-block text-brand-deep">Clarity, </span><br />
+                <span className="inline-block italic text-brand-rich/75"> delivered.</span>
               </h2>
 
               <p
-                className={`text-lg md:text-xl text-brand-dark/60 max-w-2xl font-lora transition-all duration-700 delay-300 ${isInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'}`}
+                className="text-lg md:text-xl text-brand-dark/60 max-w-2xl font-lora"
               > I sort the mess. You get something you can actually use.
               </p>
             </div>
@@ -55,7 +52,7 @@ const WhatYouGet: React.FC = () => {
                 <div
                   key={idx}
                   className="mt-12 first:mt-0"
-                  style={{ animation: isInView ? `fadeInUp 0.6s ease-out ${idx * 0.2}s both` : 'none', opacity: isInView ? undefined : 0 }}
+                  style={{ animation: `fadeInUp 0.6s ease-out ${idx * 0.2}s both` }}
                 >
                   <div className="h-px bg-brand-dark/10" />
                   <div className="flex items-start gap-6 md:gap-8 pt-12">

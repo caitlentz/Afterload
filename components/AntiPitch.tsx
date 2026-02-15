@@ -1,10 +1,7 @@
 import React from 'react';
-import { useInView } from '../utils/useInView';
 import { PhoneOff, BellOff, FileText, Video } from 'lucide-react';
 
 export default function AntiPitch() {
-  const { ref: headerRef, isInView: headerInView } = useInView();
-
   const items = [
     {
       icon: <PhoneOff size={22} strokeWidth={1} />,
@@ -33,15 +30,15 @@ export default function AntiPitch() {
       <div className="max-w-2xl mx-auto">
 
         {/* Header - New variation */}
-        <div ref={headerRef} className="text-center mb-24 md:mb-32">
+        <div className="text-center mb-24 md:mb-32">
           <div
-            className={`text-xs font-bold tracking-[0.2em] text-brand-mid/90 uppercase mb-6 transition-all duration-700 ${headerInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-6'}`}
+            className="text-xs font-bold tracking-[0.2em] text-brand-mid/90 uppercase mb-6"
           >
             The Anti-Pitch
           </div>
 
           <h2
-            className={`text-5xl md:text-7xl font-serif text-brand-deep leading-[0.9] transition-all duration-700 delay-100 ${headerInView ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'}`}
+            className="text-5xl md:text-7xl font-serif text-brand-deep leading-[0.9]"
           >
             Protect <br />
             <span className="italic text-brand-deep/70">your energy.</span>
@@ -75,24 +72,16 @@ export default function AntiPitch() {
 }
 
 const ListItem = ({ item, index, isLast }: { item: any, index: number, isLast: boolean }) => {
-  const { ref, isInView } = useInView({ threshold: 0.3 });
-
   return (
     <div
-      ref={ref}
-      className={`group relative border py-10 px-6 -mx-6 rounded-3xl transition-all duration-500 ${
-        isInView
-          ? 'bg-cream-50/50 border-brand-pale shadow-[0_12px_8px_-15px_rgba(36,14,56,0.5)] scale-[1.02]'
-          : `bg-transparent border-transparent ${isLast ? 'border-b-transparent' : 'border-b-brand-dark/10'}`
-      }`}
-      style={{ animationDelay: `${index * 0.1}s` }}
+      className="group relative border py-10 px-6 -mx-6 rounded-3xl bg-cream-50/50 border-brand-pale shadow-[0_12px_8px_-15px_rgba(36,14,56,0.5)]"
     >
-      <div className={`flex flex-col relative z-10 animate-[fadeInUp_0.6s_ease-out_both] ${isInView ? 'opacity-100' : 'opacity-0'}`} style={{ animationDelay: `${index * 0.1}s` }}>
+      <div className="flex flex-col relative z-10 animate-[fadeInUp_0.6s_ease-out_both]" style={{ animationDelay: `${index * 0.1}s` }}>
         <div className="flex justify-between items-start w-full mb-6">
-          <span className={`font-serif text-8xl leading-none select-none origin-left transition-colors duration-500 ${isInView ? 'text-brand-soft' : 'text-brand-newGlow'}`}>
+          <span className="font-serif text-8xl leading-none select-none origin-left text-brand-soft">
             0{index + 1}
           </span>
-          <div className={`w-12 h-12 rounded-full border border-brand-mid/60 bg-brand-soft/30 text-brand-mid/60 flex items-center justify-center origin-center transition-transform duration-500 ${isInView ? 'scale-105' : 'scale-100'}`}>
+          <div className="w-12 h-12 rounded-full border border-brand-mid/60 bg-brand-soft/30 text-brand-mid/60 flex items-center justify-center">
             {item.icon}
           </div>
         </div>

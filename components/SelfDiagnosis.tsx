@@ -1,5 +1,4 @@
 import React from 'react';
-import { useInView } from '../utils/useInView';
 import { AlertCircle, MessageSquare, PauseCircle, Scaling, BatteryMedium } from 'lucide-react';
 
 const symptomsList = [
@@ -56,13 +55,10 @@ interface SymptomCardProps {
 }
 
 const SymptomCard: React.FC<SymptomCardProps> = ({ item, index }) => {
-  const { ref: inViewRef, isInView } = useInView();
-
   return (
     <div
-      ref={inViewRef}
-      className={`mb-4 md:mb-6 last:mb-0 relative ${isInView ? 'animate-[fadeInUp_0.6s_ease-out_both]' : 'opacity-0'}`}
-      style={isInView ? { animationDelay: `${index * 0.08}s` } : undefined}
+      className="mb-4 md:mb-6 last:mb-0 relative animate-[fadeInUp_0.6s_ease-out_both]"
+      style={{ animationDelay: `${index * 0.08}s` }}
     >
       <div className="group relative p-6 md:p-8 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-sm transition-all duration-500 hover:shadow-md hover:bg-white/50 overflow-hidden">
 
@@ -95,15 +91,13 @@ interface SymptomsProps {
 }
 
 const Symptoms: React.FC<SymptomsProps> = ({ onStartIntake }) => {
-  const { ref: quoteRef, isInView: quoteInView } = useInView();
-
   return (
     <section id="symptoms" className="py-24 px-6 relative">
       <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-12 md:gap-24">
 
         {/* Connecting Line (The Spine) */}
         <div className="absolute left-[50%] md:left-[70%] top-40 bottom-20 w-px bg-gradient-to-b from-transparent via-brand-rich/20 to-transparent md:-translate-x-1/2" />
-        
+
         {/* Sticky Header Section */}
         <div className="md:w-5/12">
             <div className="sticky top-32">
@@ -125,8 +119,7 @@ const Symptoms: React.FC<SymptomsProps> = ({ onStartIntake }) => {
           </h2>
           {/* Side Quote Style */}
           <div
-            ref={quoteRef}
-            className={`relative z-10 flex justify-center mt-10 ${quoteInView ? 'animate-[fadeInLeft_0.6s_ease-out_both]' : 'opacity-0'}`}
+            className="relative z-10 flex justify-center mt-10 animate-[fadeInLeft_0.6s_ease-out_both]"
           >
             <div className="border-l-2 border-sage-400/30 pl-6 py-1 max-w-sm text-left">
                 <p className="font-serif italic text-lg text-sage-600/80 leading-relaxed">
