@@ -415,7 +415,7 @@ export default function App() {
                   : 'text-brand-dark/50 hover:text-brand-dark'
               }`}
             >
-              <div className={`w-1.5 h-1.5 rounded-full ${activeView === View.HOME ? 'bg-brand-dark' : 'bg-transparent'}`} />
+              <img src="/logo.png" alt="" className="w-5 h-5" />
               <span className="font-serif italic">Afterload</span>
             </button>
 
