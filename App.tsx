@@ -415,7 +415,7 @@ export default function App() {
 
   // While auth is loading, show HOME instead of a loading spinner.
   // Once auth resolves, currentView will be corrected to the right view.
-  const needsAuth = currentView === View.DASHBOARD || currentView === View.ADMIN;
+  const needsAuth = currentView === View.DASHBOARD;
   const activeView = (!authReady && needsAuth) ? View.HOME : currentView;
 
   return (
