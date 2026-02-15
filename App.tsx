@@ -162,11 +162,11 @@ export default function App() {
         if (session?.user?.email) {
           setUserEmail(session.user.email);
           if (window.location.hash.includes('access_token') || window.location.hash.includes('type=magiclink')) {
-            setCurrentView(View.DASHBOARD);
+            setCurrentView(prev => prev === View.ADMIN ? prev : View.DASHBOARD);
             window.history.replaceState({}, '', window.location.pathname);
           }
           // If user returned from Stripe and now has auth, upgrade to Dashboard
-          setCurrentView(prev => prev === View.SUCCESS ? View.DASHBOARD : prev);
+          setCurrentView(prev => (prev === View.SUCCESS) ? View.DASHBOARD : prev);
         } else {
           // No Supabase session — but if we have a localStorage email
           // (from password login), keep using it
@@ -193,7 +193,8 @@ export default function App() {
         if (session?.user?.email) {
           setUserEmail(session.user.email);
           if (_event === 'SIGNED_IN') {
-            setCurrentView(View.DASHBOARD);
+            // Don't override ADMIN view
+            setCurrentView(prev => prev === View.ADMIN ? prev : View.DASHBOARD);
             if (window.location.hash) {
               window.history.replaceState({}, '', window.location.pathname);
             }
