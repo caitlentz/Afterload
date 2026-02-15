@@ -206,34 +206,31 @@ export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
   };
 
   try {
-    const { data: payments, error } = await supabase
-      .from('payments')
-      .select('payment_type, status, created_at')
-      .eq('email', email.toLowerCase())
-      .eq('status', 'succeeded')
-      .order('created_at', { ascending: true });
+    // Use SECURITY DEFINER RPC to bypass RLS — the anon key cannot read
+    // the payments table directly, but this function can.
+    const { data, error } = await supabase.rpc('check_payment_status', {
+      lookup_email: email,
+    });
 
     if (error) {
-      // Table might not exist yet — fail gracefully
-      console.error('getPaymentStatus error:', error);
+      console.error('getPaymentStatus RPC error:', error);
       return result;
     }
 
-    if (!payments || payments.length === 0) return result;
+    if (!data) return result;
 
-    for (const p of payments) {
-      if (p.payment_type === 'deposit') {
-        result.depositPaid = true;
-        result.depositDate = p.created_at;
-      }
-      if (p.payment_type === 'balance') {
-        result.balancePaid = true;
-        result.balanceDate = p.created_at;
-      }
-      if (p.payment_type === 'full') {
-        result.paid = true;
-        result.paidDate = p.created_at;
-      }
+    result.depositPaid = data.deposit_paid || false;
+    result.balancePaid = data.balance_paid || false;
+    result.depositDate = data.deposit_date || null;
+    result.balanceDate = data.balance_date || null;
+
+    // "paid" = full payment OR deposit + balance
+    if (data.full_paid) {
+      result.paid = true;
+      result.paidDate = data.full_date;
+    } else if (data.deposit_paid && data.balance_paid) {
+      result.paid = true;
+      result.paidDate = data.balance_date;
     }
   } catch (e) {
     console.error('getPaymentStatus unexpected error:', e);
