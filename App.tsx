@@ -103,24 +103,32 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
+  // TEMPORARY: Paywall disabled — treat everyone as paid
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>({
-    depositPaid: false,
-    balancePaid: false,
+    depositPaid: true,
+    balancePaid: true,
     depositDate: null,
     balanceDate: null,
-    paid: false,
-    paidDate: null,
+    paid: true,
+    paidDate: new Date().toISOString(),
   });
 
   // Clear chunk reload flag on successful mount
   useEffect(() => { sessionStorage.removeItem('afterload_chunk_reload'); }, []);
 
   // Helper: fetch payment status for a given email
-  const refreshPaymentStatus = async (email: string) => {
-    const { getPaymentStatus } = await import('./utils/database');
-    const status = await getPaymentStatus(email);
-    setPaymentStatus(status);
-    return status;
+  // TEMPORARY: Paywall disabled — always return paid
+  const refreshPaymentStatus = async (_email: string) => {
+    const alwaysPaid: PaymentStatus = {
+      depositPaid: true,
+      balancePaid: true,
+      depositDate: null,
+      balanceDate: null,
+      paid: true,
+      paidDate: new Date().toISOString(),
+    };
+    setPaymentStatus(alwaysPaid);
+    return alwaysPaid;
   };
 
   // Fetch payment status whenever we have an email (lazy-loads database module)
