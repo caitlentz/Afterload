@@ -8,7 +8,7 @@ import { fetchAllClients, fetchAllPayments, saveAdminNote, saveAdminTaggedNote }
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
 
 // ─── PIN Gate ───────────────────────────────────────────────────────
-const ADMIN_PIN = '1234'; // Change this to your own PIN
+const ADMIN_PIN = '4410';
 
 function PinGate({ onUnlock }: { onUnlock: () => void }) {
   const [pin, setPin] = useState('');
