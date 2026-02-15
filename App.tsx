@@ -80,7 +80,10 @@ const STORAGE = {
 export default function App() {
   // 1. Initialize State
   const [currentView, setCurrentView] = useState<View>(() => {
-    return (localStorage.getItem(STORAGE.VIEW) as View) || View.HOME;
+    const saved = localStorage.getItem(STORAGE.VIEW) as View;
+    // Never restore ADMIN from localStorage — it must be accessed via ?admin=true
+    if (saved === View.ADMIN) return View.HOME;
+    return saved || View.HOME;
   });
 
   const [userEmail, setUserEmail] = useState<string | null>(() => {
