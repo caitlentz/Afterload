@@ -405,7 +405,7 @@ export default function App() {
       {/* Header - Centered Pill Style */}
       <header className="fixed top-0 left-0 right-0 z-50 flex justify-center py-8 pointer-events-none">
         <div
-          className="pointer-events-auto bg-white/80 backdrop-blur-md px-1 py-1 rounded-full border border-black/5 shadow-sm flex items-center gap-1 animate-[slideDown_0.8s_cubic-bezier(0.22,1,0.36,1)_0.2s_both]"
+          className="pointer-events-auto bg-white px-1 py-1 rounded-full border border-black/5 shadow-sm flex items-center gap-1"
         >
             <button
               onClick={() => navigate(View.HOME)}

@@ -1,156 +1,296 @@
-import React, { lazy, Suspense } from 'react';
-import { ArrowRight, ArrowDown } from 'lucide-react';
+import React, { lazy, Suspense, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import type { IntakeResponse } from '../utils/diagnosticEngine';
-
-// Direct imports for homepage sections — these are small (< 20KB total)
-// and must render without extra network round-trips on mobile
-import SelfDiagnosis from './SelfDiagnosis';
-import AntiPitch from './AntiPitch';
-import Delivery from './Delivery';
-import FAQ from './FAQ';
 import Footer from './Footer';
 
-// Only lazy-load Intake (imports framer-motion, 32KB+ chunk)
 const Intake = lazy(() => import('./Intake'));
 
 interface HeroProps {
   onDiagnosticComplete: (answers: IntakeResponse) => void;
   onLoginClick: () => void;
   userEmail?: string | null;
-  key?: React.Key;
 }
 
+/* ── Static Data ──────────────────────────────────────────────── */
 
-export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: HeroProps) {
+const problems = [
+  {
+    title: 'You are the bottleneck',
+    body: 'Every approval, every decision, every client issue routes through you. Your team waits. Work stalls.',
+  },
+  {
+    title: 'Nothing is written down',
+    body: "Processes live in your head, in Slack threads, in someone's memory. If you disappeared for a week, things would break.",
+  },
+  {
+    title: "You've tried tools before",
+    body: 'New software, new systems, new workflows. They work for a week, then entropy wins. The problem was never the tool.',
+  },
+  {
+    title: 'Low days cost you everything',
+    body: "When your energy drops, the whole business slows down. There's no system that runs without your executive function at full capacity.",
+  },
+];
+
+const deliverables = [
+  {
+    title: 'Constraint Analysis',
+    body: 'We identify your primary operational bottleneck — whether it\u2019s capacity, cognitive overload, or founder dependency — and map the root cause.',
+  },
+  {
+    title: 'Operational Health Map',
+    body: 'A stage-by-stage assessment across sales, delivery, approvals, and systems. Green, yellow, or red. No guessing.',
+  },
+  {
+    title: 'Phased Roadmap',
+    body: 'What to fix first, what to ignore for now, and a clear next step. DIY path, scoped fix, or full implementation. No pressure attached.',
+  },
+];
+
+const steps = [
+  {
+    label: 'Step 1',
+    title: 'Take the diagnostic',
+    body: 'Answer a structured intake about your business, team, and operations. Takes about 15 minutes. Free.',
+  },
+  {
+    label: 'Step 2',
+    title: 'Get your preview',
+    body: 'Immediately see where your primary bottleneck is and what constraint pattern your business fits. This preview is free.',
+  },
+  {
+    label: 'Step 3',
+    title: 'Unlock the full report',
+    body: 'Pay $1,200 to unlock your complete constraint analysis, health map, and phased roadmap. Written for you, not a template.',
+  },
+];
+
+const faqs = [
+  {
+    question: 'Is this a sales funnel for consulting?',
+    answer:
+      'No. The diagnostic is the product. If you want help implementing the recommendations, you can ask. If not, you keep the report and we leave you alone.',
+  },
+  {
+    question: 'What exactly do I get for $1,200?',
+    answer:
+      'A written constraint analysis, an operational health map, and a phased roadmap. All specific to your business. Not a template.',
+  },
+  {
+    question: "What if I don't have all my numbers ready?",
+    answer:
+      "Estimates are fine. We need to know the shape of the problem, not your exact P&L. Directional accuracy is enough.",
+  },
+  {
+    question: 'How long does it take?',
+    answer:
+      'The intake takes about 15 minutes. You get your preview immediately. The full report is delivered after a clarity session, typically within one week.',
+  },
+  {
+    question: 'Is this built for neurodivergent founders?',
+    answer:
+      "Yes. The diagnostic, the report structure, and the recommendations are all designed to work on low-bandwidth days. No walls of text. No 90-day action plans you'll never touch.",
+  },
+];
+
+/* ── Component ────────────────────────────────────────────────── */
+
+export default function Hero({
+  onDiagnosticComplete,
+  onLoginClick,
+  userEmail,
+}: HeroProps) {
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
   const handleScrollToIntake = () => {
-    const intakeSection = document.getElementById('intake');
-    if (intakeSection) {
-      intakeSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    const el = document.getElementById('intake');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
-    <div
-      className="flex flex-col w-full animate-[fadeIn_0.8s_ease-out]"
-    >
-      {/* 1. HERO SECTION */}
-      <section className="relative flex flex-col items-center justify-start w-full max-w-6xl mx-auto overflow-hidden">
+    <div className="flex flex-col w-full">
 
-        {/* VIEWPORT 1: TITLE & ORB */}
-        <div className="min-h-[90vh] md:min-h-screen w-full flex flex-col items-center justify-center relative px-4">
+      {/* ── 1. HERO ───────────────────────────────────────────── */}
+      <section className="w-full px-6 pt-32 pb-20 md:pt-40 md:pb-28">
+        <div className="max-w-2xl mx-auto text-center">
+          <p className="text-[11px] font-sans font-semibold tracking-[0.2em] uppercase text-brand-mid mb-8">
+            Operational Diagnostic for Founder-Led Businesses
+          </p>
 
-            {/* Subtle Center Glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[100vw] h-[100vw] max-w-[600px] max-h-[600px] pointer-events-none z-0 flex items-center justify-center">
-                <div
-                    className="absolute w-40 h-40 md:w-56 md:h-56 rounded-full z-10 blur-[80px] bg-[radial-gradient(circle_at_center,theme(colors.brand.accent)_50%,theme(colors.sage.300)_100%)] animate-[gentlePulse_12s_ease-in-out_infinite]"
-                />
-            </div>
+          <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl text-brand-dark leading-[1.1] mb-6">
+            Your business grew.
+            <br />
+            <span className="italic text-brand-rich">Your systems didn't.</span>
+          </h1>
 
-            {/* Headline */}
-            <div className="relative z-10 w-full max-w-6xl">
-                <div
-                    className="relative font-serif tracking-tighter w-full py-12 md:py-20 flex flex-col items-center animate-[fadeInUp_1.2s_cubic-bezier(0.22,1,0.36,1)_0.2s_both]"
-                >
-                    {/* Pre-title Label */}
-                    <div className="text-[10px] md:text-xs font-sans font-bold tracking-[0.3em] uppercase text-brand-mid mb-6 md:mb-8 text-center">
-                        The End State Is
-                    </div>
+          <p className="font-sans text-lg md:text-xl text-brand-primary leading-relaxed max-w-xl mx-auto mb-10">
+            Afterload maps where your business depends on you — and gives you a
+            plan to change that.
+          </p>
 
-                    <div
-                      className="relative z-10 bg-[linear-gradient(40deg,theme(colors.brand.accent),theme(colors.sage.500),theme(colors.lavender.800),theme(colors.lavender.500),theme(colors.sage.500)_100%)] text-transparent bg-clip-text p-1 md:p-2 w-full"
-                      style={{
-                        filter: `drop-shadow(0 0 1px rgba(49, 13, 86, 0.15)) drop-shadow(0 1px 4px rgba(168, 150, 202, 0.25))`
-                      }}
-                    >
-                      {/* Architected - Left Aligned */}
-                      <h1 className="text-left w-full leading-[.9]">
-                        <span className="block text-[clamp(3.5rem,17vw,9.5rem)]">Architected</span>
-                        <span className="block text-[clamp(3.5rem,18vw,9.5rem)] pl-[2vw]"></span>
-                      </h1>
+          <button
+            onClick={handleScrollToIntake}
+            className="px-8 py-4 bg-brand-deep text-white text-sm font-semibold tracking-wide rounded-full hover:bg-brand-rich transition-colors duration-200"
+          >
+            Start the Diagnostic
+          </button>
 
-                      {/* Calm - Right Aligned & Italic */}
-                      <h1 className="text-right w-full pr-2 md:pr-4 leading-[0.85] -mt-2 md:-mt-6">
-                        <span className="italic font-light text-[clamp(4.5rem,27vw,19rem)]">Calm.</span>
-                      </h1>
-                    </div>
-                </div>
-            </div>
-
-             {/* Connector Line Start */}
-            <div
-                className="absolute bottom-8 left-0 right-0 mx-auto w-fit flex flex-col items-center gap-4 text-brand-mid animate-[fadeIn_1s_ease-out_1.5s_both]"
-            >
-                <div className="text-[9px] md:text-[10px] font-bold uppercase tracking-[0.3em] text-center">Discover The Disconnect</div>
-                <div
-                    className="w-px bg-gradient-to-b from-brand-soft/80 to-brand-mid animate-[growHeight_1.2s_ease-in-out_1.8s_both]"
-                />
-            </div>
-        </div>
-
-        {/* VIEWPORT 2: PARADOX & CTA */}
-        <div className="w-full flex flex-col items-center relative z-10 pb-24 px-4">
-
-            {/* Connecting Line Continuation */}
-            <div className="flex flex-col items-center mb-10 opacity-60 text-brand-mid">
-                <div className="w-px h-16 bg-gradient-to-b from-brand-mid to-transparent" />
-                <ArrowDown size={20} className="mt-[-8px]" />
-            </div>
-
-            {/* The Paradox Card */}
-            <div
-            className="w-full max-w-xl backdrop-blur-xl backdrop-saturate-150 border-[2px] border-transparent rounded-[2.5rem] p-6 pt-12 md:p-10 md:pt-14 shadow-[0_20px_40px_-15px_rgba(160,147,180,0.65),inset_0_0_0_1px_rgba(255,255,255,0.4)] text-center relative z-10"
-            style={{ background: 'linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)) padding-box, linear-gradient(45deg, #F5F2F6, #E4D8D0, #D3C4CF, #F5F2F6) border-box' }}
-            >
-
-
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 inline-block px-6 py-2 rounded-full bg-lavender-50/80 text-[10px] font-bold tracking-[0.2em] uppercase shadow-sm border border-brand-dark/5 whitespace-nowrap z-20 text-brand-primary">
-                The Paradox
-            </div>
-
-            <h2 className="relative z-10 text-[10px] sm:text-xs font-bold tracking-[0.05em] sm:tracking-[0.15em] font-sans text-brand-dark uppercase mb-6 leading-relaxed whitespace-nowrap">
-                Your business grew. <span className="text-brand-dark/50">Your systems didn't.</span>
-            </h2>
-
-            <div className="relative z-10 flex items-center justify-center w-full max-w-[240px] mx-auto mb-8 opacity-30">
-                <div className="h-px flex-1 bg-gradient-to-r from-transparent via-brand-dark to-brand-dark"></div>
-                <div className="w-2.5 h-2.5 border border-brand-dark rotate-45 mx-0 bg-transparent"></div>
-                <div className="h-px flex-1 bg-gradient-to-l from-transparent via-brand-dark to-brand-dark"></div>
-            </div>
-
-            <p className="relative z-10 font-lora text-l md:text-xl text-brand-dark/80 leading-relaxed">
-                Afterload's diagnostic shows where your business is quietly leaning on you —
-                and where the strain is coming from. No calls. No pressure. No implementation.
-
-            </p>
-            </div>
-
-            {/* CTA Button */}
-            <div className="mt-12 z-10">
-            <button
-                onClick={handleScrollToIntake}
-                className="group relative px-10 py-5 bg-gradient-to-br from-brand-rich to-brand-deep rounded-full text-white shadow-[0_20px_40px_-15px_rgba(62,28,85,0.4)] hover:shadow-[0_25px_50px_-12px_rgba(62,28,85,0.6)] hover:scale-[1.02] active:scale-[0.96] transition-all duration-300 overflow-hidden ring-1 ring-white/10"
-            >
-                <div className="relative flex items-center justify-center gap-3">
-                  <span className="text-xs font-bold tracking-[0.2em] uppercase">Start Diagnostic</span>
-                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform text-brand-soft" />
-                </div>
-            </button>
-            <div className="mt-4 text-[10px] text-brand-mid/90 uppercase tracking-widest text-center">
-                No Sales Calls. No Guilt.
-            </div>
-            </div>
+          <p className="mt-4 text-sm text-brand-mid">
+            Free intake. No calls. No pressure.
+          </p>
+          <p className="mt-2 text-xs text-brand-mid/60">
+            Full diagnostic: $1,200
+          </p>
         </div>
       </section>
 
-      <SelfDiagnosis onStartIntake={handleScrollToIntake} />
-      <AntiPitch />
-      <Delivery />
-      <FAQ />
+      {/* ── 2. PROBLEM ────────────────────────────────────────── */}
+      <section className="w-full px-6 py-20 md:py-28 bg-brand-pale">
+        <div className="max-w-3xl mx-auto">
+          <p className="text-[11px] font-sans font-semibold tracking-[0.2em] uppercase text-brand-mid mb-4">
+            The Pattern
+          </p>
+          <h2 className="font-serif text-3xl md:text-5xl text-brand-dark mb-12 md:mb-16">
+            Sound familiar?
+          </h2>
 
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10">
+            {problems.map((item) => (
+              <div
+                key={item.title}
+                className="border-t border-brand-dark/10 pt-6"
+              >
+                <h3 className="font-sans text-sm font-semibold tracking-wide uppercase text-brand-deep mb-3">
+                  {item.title}
+                </h3>
+                <p className="font-serif text-lg text-brand-primary leading-relaxed">
+                  {item.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 3. WHAT YOU GET ───────────────────────────────────── */}
+      <section className="w-full px-6 py-20 md:py-28">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-[11px] font-sans font-semibold tracking-[0.2em] uppercase text-brand-mid mb-4">
+            What You Get
+          </p>
+          <h2 className="font-serif text-3xl md:text-5xl text-brand-dark mb-12 md:mb-16">
+            Three deliverables. Zero fluff.
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8">
+            {deliverables.map((item, idx) => (
+              <div key={item.title}>
+                <span className="font-serif text-5xl text-brand-soft block mb-4">
+                  0{idx + 1}
+                </span>
+                <h3 className="font-sans text-sm font-semibold tracking-wide uppercase text-brand-deep mb-3">
+                  {item.title}
+                </h3>
+                <p className="font-serif text-base text-brand-primary leading-relaxed">
+                  {item.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4. HOW IT WORKS ───────────────────────────────────── */}
+      <section className="w-full px-6 py-20 md:py-28 bg-sage-300/30">
+        <div className="max-w-4xl mx-auto">
+          <p className="text-[11px] font-sans font-semibold tracking-[0.2em] uppercase text-brand-mid mb-4">
+            How It Works
+          </p>
+          <h2 className="font-serif text-3xl md:text-5xl text-brand-dark mb-12 md:mb-16">
+            Three steps to clarity.
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-8">
+            {steps.map((step) => (
+              <div
+                key={step.title}
+                className="border-l-2 border-brand-deep/30 pl-6"
+              >
+                <p className="text-[11px] font-sans font-semibold tracking-[0.2em] uppercase text-brand-mid mb-2">
+                  {step.label}
+                </p>
+                <h3 className="font-serif text-xl text-brand-dark mb-3">
+                  {step.title}
+                </h3>
+                <p className="font-sans text-sm text-brand-primary leading-relaxed">
+                  {step.body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 5. FAQ ────────────────────────────────────────────── */}
+      <section className="w-full px-6 py-20 md:py-28">
+        <div className="max-w-2xl mx-auto">
+          <p className="text-[11px] font-sans font-semibold tracking-[0.2em] uppercase text-brand-mid mb-4">
+            Questions
+          </p>
+          <h2 className="font-serif text-3xl md:text-5xl text-brand-dark mb-12">
+            Before you start.
+          </h2>
+
+          <div className="border-t border-brand-dark/10">
+            {faqs.map((faq, idx) => (
+              <div key={idx} className="border-b border-brand-dark/10">
+                <button
+                  onClick={() =>
+                    setOpenFaq(openFaq === idx ? null : idx)
+                  }
+                  className="w-full py-6 flex items-center justify-between text-left"
+                >
+                  <span
+                    className={`font-serif text-lg md:text-xl pr-4 transition-colors duration-200 ${
+                      openFaq === idx
+                        ? 'text-brand-deep'
+                        : 'text-brand-dark'
+                    }`}
+                  >
+                    {faq.question}
+                  </span>
+                  <ChevronDown
+                    size={18}
+                    className={`shrink-0 text-brand-mid transition-transform duration-200 ${
+                      openFaq === idx ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
+                <div
+                  className={`grid transition-all duration-200 ${
+                    openFaq === idx
+                      ? 'grid-rows-[1fr] opacity-100'
+                      : 'grid-rows-[0fr] opacity-0'
+                  }`}
+                >
+                  <div className="overflow-hidden">
+                    <p className="pb-6 font-sans text-base text-brand-primary leading-relaxed">
+                      {faq.answer}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6. INTAKE (existing component) ────────────────────── */}
       <Suspense fallback={<div className="min-h-[60vh]" />}>
         <Intake onComplete={onDiagnosticComplete} userEmail={userEmail} />
       </Suspense>
 
+      {/* ── 7. FOOTER (existing component) ────────────────────── */}
       <Footer onLoginClick={onLoginClick} />
     </div>
   );
