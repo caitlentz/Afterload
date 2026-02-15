@@ -130,6 +130,27 @@ Deno.serve(async (req: Request) => {
     console.log(
       `✅ Payment recorded: ${paymentType} — $${(amountTotal / 100).toFixed(2)} from ${emailLower}`
     );
+
+    // Notify admin of payment (fire-and-forget)
+    try {
+      await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/notify-submission`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: emailLower,
+            mode: "payment",
+            track: paymentType,
+          }),
+        }
+      );
+    } catch (e) {
+      console.error("Failed to send payment notification:", e);
+    }
   }
 
   // Handle payment_intent.payment_failed

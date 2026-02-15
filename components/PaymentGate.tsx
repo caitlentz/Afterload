@@ -8,7 +8,7 @@ interface PaymentGateProps {
   onBack: () => void;
   onSuccess: () => void;
   cost: number;
-  key?: React.Key;
+  email?: string | null;
 }
 
 const deliverables = [
@@ -19,7 +19,7 @@ const deliverables = [
   'Clear next-step recommendation (DIY, scoped fix, or full build)',
 ];
 
-export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
+export default function PaymentGate({ onBack, onSuccess, email }: PaymentGateProps) {
 
   useEffect(() => {
     if (!document.querySelector('script[src="https://js.stripe.com/v3/buy-button.js"]')) {
@@ -109,6 +109,7 @@ export default function PaymentGate({ onBack, onSuccess }: PaymentGateProps) {
               <StripeBuyButton
                 buy-button-id="buy_btn_1SvmF5Aw6xE6hpmRVOFHQDde"
                 publishable-key="pk_live_51RKvWMAw6xE6hpmRkoExos4LVjkBKK1lnRONIYbE5YmjjOTG74wTZZaG4NtORAkHa4CwIDlVECpF7sIbpIOgAt5h00FZUbgWIL"
+                {...(email ? { 'customer-email': email } : {})}
               />
             </div>
           </div>

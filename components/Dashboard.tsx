@@ -4,7 +4,6 @@ import {
   LogOut,
   Activity,
   FileText,
-  Clock,
   CheckCircle,
   ChevronRight,
   Zap,
@@ -18,8 +17,8 @@ import {
   Check,
   Sparkles,
 } from 'lucide-react';
-import { IntakeResponse, DiagnosticResult } from '../utils/diagnosticEngine';
-import { PaymentStatus } from '../utils/database';
+import type { IntakeResponse, DiagnosticResult } from '../utils/diagnosticEngine';
+import type { PaymentStatus } from '../utils/database';
 
 const Intake = lazy(() => import('./Intake'));
 
@@ -37,7 +36,6 @@ interface DashboardProps {
   onResetDiagnostic: () => void;
   onUpdateIntake: (updates: Partial<IntakeResponse>) => void;
   onLogout: () => void;
-  key?: React.Key;
 }
 
 // Human-readable labels for intake question IDs

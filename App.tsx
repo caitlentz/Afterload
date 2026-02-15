@@ -88,6 +88,7 @@ export default function App() {
     return localStorage.getItem('afterload_dev_email') || null;
   });
   const [authReady, setAuthReady] = useState(false);
+  const [returnedFromStripe, setReturnedFromStripe] = useState(false);
 
   const [previewResult, setPreviewResult] = useState<PreviewResult | null>(() => {
     const saved = localStorage.getItem(STORAGE.PREVIEW);
@@ -111,12 +112,18 @@ export default function App() {
   // Clear chunk reload flag on successful mount
   useEffect(() => { sessionStorage.removeItem('afterload_chunk_reload'); }, []);
 
+  // Helper: fetch payment status for a given email
+  const refreshPaymentStatus = async (email: string) => {
+    const { getPaymentStatus } = await import('./utils/database');
+    const status = await getPaymentStatus(email);
+    setPaymentStatus(status);
+    return status;
+  };
+
   // Fetch payment status whenever we have an email (lazy-loads database module)
   useEffect(() => {
     if (userEmail) {
-      import('./utils/database').then(({ getPaymentStatus }) =>
-        getPaymentStatus(userEmail).then(setPaymentStatus)
-      );
+      refreshPaymentStatus(userEmail);
     }
   }, [userEmail]);
 
@@ -166,46 +173,26 @@ export default function App() {
       subscription = data.subscription;
     });
 
-    if ('requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(start);
-    } else {
-      setTimeout(start, 150);
-    }
+    // Start after first paint — no arbitrary wait
+    setTimeout(start, 0);
 
     return () => { cancelled = true; subscription?.unsubscribe(); };
   }, []);
 
-  // 3. Handle Stripe Redirects, "Resume" Links, and Admin Access
+  // 3. Handle Stripe Redirects, "Resume" Links, and Admin Access (detection only)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    let returnedFromStripe = false;
 
     if (params.get('success') === 'true' || params.get('resume') === 'true') {
         window.history.replaceState({}, '', window.location.pathname);
         setCurrentView(View.DASHBOARD);
-        returnedFromStripe = true;
+        setReturnedFromStripe(true);
     }
     // Detect return from Stripe Buy Button (redirects to root with no params)
     if (sessionStorage.getItem('afterload_payment_pending') === 'true') {
         sessionStorage.removeItem('afterload_payment_pending');
         setCurrentView(View.DASHBOARD);
-        returnedFromStripe = true;
-    }
-
-    // If returning from Stripe, poll payment status until webhook confirms it
-    if (returnedFromStripe) {
-      const pollPayment = async (attempts: number) => {
-        const email = userEmail || localStorage.getItem('afterload_dev_email');
-        if (!email) return;
-        const { getPaymentStatus } = await import('./utils/database');
-        const status = await getPaymentStatus(email);
-        setPaymentStatus(status);
-        if (!status.paid && attempts > 0) {
-          setTimeout(() => pollPayment(attempts - 1), 3000);
-        }
-      };
-      // Fetch immediately, then poll
-      pollPayment(4);
+        setReturnedFromStripe(true);
     }
 
     // Secret admin route: ?admin=true
@@ -214,7 +201,41 @@ export default function App() {
     }
   }, []);
 
-  // 4. Persist local state on change
+  // 3b. Poll payment status after Stripe return — waits for email to be available
+  useEffect(() => {
+    if (!returnedFromStripe) return;
+    const email = userEmail || localStorage.getItem('afterload_dev_email');
+    if (!email) return; // Will re-run when userEmail becomes available
+
+    let cancelled = false;
+    const pollPayment = async (attempts: number) => {
+      if (cancelled) return;
+      const status = await refreshPaymentStatus(email);
+      if (status.paid || attempts <= 0) {
+        setReturnedFromStripe(false);
+      } else {
+        setTimeout(() => pollPayment(attempts - 1), 3000);
+      }
+    };
+    pollPayment(10); // 10 attempts × 3s = 30 seconds max
+
+    return () => { cancelled = true; };
+  }, [returnedFromStripe, userEmail]);
+
+  // 4. Preload Stripe script when user approaches payment
+  useEffect(() => {
+    if (currentView === View.CLARITY_SESSION || currentView === View.DIAGNOSTIC_PREVIEW) {
+      if (!document.querySelector('link[href="https://js.stripe.com/v3/buy-button.js"]')) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.href = 'https://js.stripe.com/v3/buy-button.js';
+        link.as = 'script';
+        document.head.appendChild(link);
+      }
+    }
+  }, [currentView]);
+
+  // 5. Persist local state on change
   useEffect(() => {
     localStorage.setItem(STORAGE.VIEW, currentView);
     if (intakeData) localStorage.setItem(STORAGE.INTAKE, JSON.stringify(intakeData));
@@ -244,15 +265,18 @@ export default function App() {
       const intakeId = await saveIntakeResponse(email, 'initial', answers, track);
       saveDiagnosticResult(email, 'preview', preview, intakeId || undefined);
 
-      // Send magic link for account creation (non-blocking, fire-and-forget)
-      if (!userEmail) {
-        import('./utils/supabase').then(({ supabase }) => {
+      // Notify admin + send magic link (non-blocking, fire-and-forget)
+      import('./utils/supabase').then(({ supabase }) => {
+        supabase.functions.invoke('notify-submission', {
+          body: { email, mode: 'initial', track, clientName: answers.firstName },
+        });
+        if (!userEmail) {
           supabase.auth.signInWithOtp({
             email,
             options: { emailRedirectTo: window.location.origin },
           });
-        });
-      }
+        }
+      });
     }
   };
 
@@ -270,6 +294,13 @@ export default function App() {
       ]);
       const track = determineTrack(merged.business_type);
       saveIntakeResponse(email, 'deep', merged, track);
+
+      // Notify admin of deep intake completion (fire-and-forget)
+      import('./utils/supabase').then(({ supabase }) => {
+        supabase.functions.invoke('notify-submission', {
+          body: { email, mode: 'deep', track, clientName: merged.firstName },
+        });
+      });
     }
   };
 
@@ -414,8 +445,14 @@ export default function App() {
             {activeView === View.PAYMENT && (
               <PaymentGate
                 onBack={() => navigate(View.CLARITY_SESSION)}
-                onSuccess={() => navigate(userEmail ? View.DASHBOARD : View.SUCCESS)}
+                onSuccess={() => {
+                  const email = userEmail || intakeData?.email;
+                  if (email) refreshPaymentStatus(email);
+                  setReturnedFromStripe(true);
+                  navigate(userEmail ? View.DASHBOARD : View.SUCCESS);
+                }}
                 cost={1200}
+                email={userEmail || intakeData?.email}
               />
             )}
             {activeView === View.CLARITY_SESSION && (

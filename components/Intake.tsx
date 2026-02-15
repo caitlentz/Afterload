@@ -172,7 +172,6 @@ function determineClarityTrack(answer: string | undefined): 'A' | 'B' | 'C' {
 export default function Intake({ onComplete, mode = 'initial', initialDataMissing = false, userEmail }: IntakeProps) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
-  const [direction, setDirection] = useState(1);
   const [contactForm, setContactForm] = useState({ firstName: '', email: userEmail || '', businessName: '', website: '', specificType: '' });
   const [initialBusinessType, setInitialBusinessType] = useState<BusinessType>(null);
   const [isRoutingPhase, setIsRoutingPhase] = useState(true);
@@ -254,8 +253,6 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
 
   const handleNext = (answersOverride?: Record<string, any>) => {
     const currentAnswers = answersOverride || answers;
-    setDirection(1);
-
     if (mode === 'initial' && isRoutingPhase) {
         const selectedType = mapAnswerToBusinessType(currentAnswers['business_type']);
         setInitialBusinessType(selectedType);
@@ -294,7 +291,6 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
   };
 
   const handlePrev = () => {
-    setDirection(-1);
     let prevStep = step - 1;
     while (prevStep >= 0) {
         const prevQ = questions[prevStep];
