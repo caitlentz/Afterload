@@ -196,6 +196,18 @@ export async function checkReportReleased(email: string): Promise<boolean> {
 }
 
 // ------------------------------------------------------------------
+// DELETE ADMIN NOTE (e.g., to unmark delivered)
+// ------------------------------------------------------------------
+
+export async function deleteAdminNote(noteId: string) {
+  const { error } = await supabase.rpc('admin_delete_note', {
+    p_note_id: noteId,
+  });
+  if (error) console.error('deleteAdminNote error:', error);
+  return !error;
+}
+
+// ------------------------------------------------------------------
 // REPORT OVERRIDES (admin editing of report sections)
 // ------------------------------------------------------------------
 

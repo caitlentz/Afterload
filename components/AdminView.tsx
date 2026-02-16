@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import {
   fetchAllClients, fetchAllPayments, saveAdminNote, saveAdminTaggedNote,
+  deleteAdminNote,
   saveReportOverride, deleteReportOverride, fetchReportOverrides,
   ReportOverride
 } from '../utils/database';
@@ -439,6 +440,13 @@ export default function AdminView() {
     loadData();
   };
 
+  const handleUnmarkDelivered = async (client: ClientData) => {
+    const deliveredNote = client.admin_notes?.find((n) => n.note?.includes('[delivered]'));
+    if (!deliveredNote) return;
+    await deleteAdminNote(deliveredNote.id);
+    loadData();
+  };
+
   const handleReleaseReport = async (clientId: string) => {
     await saveAdminTaggedNote(clientId, `Report released for client viewing on ${new Date().toLocaleDateString()}`, 'report-released');
     loadData();
@@ -797,6 +805,15 @@ export default function AdminView() {
                               Mark as Delivered
                             </button>
                           </div>
+                        )}
+                        {stage === 'delivered' && (
+                          <button
+                            onClick={() => handleUnmarkDelivered(client)}
+                            className="w-full py-3 rounded-xl bg-amber-500 text-white text-xs font-bold uppercase tracking-widest hover:bg-amber-600 transition-colors flex items-center justify-center gap-2"
+                          >
+                            <RotateCcw size={14} />
+                            Unmark Delivered
+                          </button>
                         )}
 
                         {/* ─── Tab Switcher (Overview / Report Editor) ─── */}
