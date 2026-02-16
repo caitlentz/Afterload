@@ -173,22 +173,14 @@ export async function saveAdminTaggedNote(clientId: string, note: string, tag: s
 // ------------------------------------------------------------------
 export async function checkReportReleased(email: string): Promise<boolean> {
   try {
-    const { data: client } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('email', email.toLowerCase())
-      .single();
-
-    if (!client) return false;
-
-    const { data: notes, error } = await supabase
-      .from('admin_notes')
-      .select('note')
-      .eq('client_id', client.id);
-
-    if (error || !notes) return false;
-
-    return notes.some((n: any) => n.note?.includes('[report-released]'));
+    const { data, error } = await supabase.rpc('check_report_released', {
+      p_email: email.toLowerCase(),
+    });
+    if (error) {
+      console.error('checkReportReleased RPC error:', error);
+      return false;
+    }
+    return data === true;
   } catch (e) {
     console.error('checkReportReleased error:', e);
     return false;
