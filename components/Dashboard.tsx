@@ -73,6 +73,21 @@ const ANSWER_LABELS: Record<string, string> = {
   profitability_gut_check: 'Profitability',
   expense_awareness: 'Expense Awareness',
   average_service_rate: 'Service Rate',
+  business_model: 'Business Model',
+  revenue_generation: 'Revenue Generation',
+  two_week_absence: 'Two-Week Absence Impact',
+  final_decisions: 'Decision Authority',
+  project_stall: 'Project Stall Point',
+  growth_limiter: 'Growth Limiter',
+  process_documentation: 'Process Documentation',
+  roles_handled: 'Roles Handled',
+  client_relationship: 'Client Relationships',
+  key_member_leaves: 'Key Member Impact',
+  pricing_decisions: 'Pricing Authority',
+  interruption_frequency: 'Interruption Frequency',
+  hiring_situation: 'Hiring Situation',
+  free_capacity: 'Capacity Lever',
+  current_state: 'Current State',
 };
 
 // Keys to skip showing (they're displayed elsewhere or are meta)
@@ -572,13 +587,13 @@ export default function Dashboard({
               Snapshot
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {intakeData.business_type && (
+              {(intakeData.business_model || intakeData.business_type) && (
                 <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-white/60">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">
                     Model
                   </div>
                   <div className="font-serif text-sm text-brand-dark leading-tight">
-                    {intakeData.business_type.split('(')[0].trim()}
+                    {(intakeData.business_model || intakeData.business_type)?.split('(')[0]?.trim()}
                   </div>
                 </div>
               )}

@@ -144,7 +144,7 @@ function getBusinessInfo(answers: any) {
   return {
     businessName: answers?.businessName || answers?.business_name || null,
     website: answers?.website || null,
-    industryType: answers?.specificType || answers?.business_type || null,
+    industryType: answers?.specificType || answers?.business_model || answers?.business_type || null,
     firstName: answers?.firstName || answers?.first_name || null,
     email: answers?.email || null,
   };
@@ -748,7 +748,7 @@ export default function AdminView() {
                               <div>
                                 <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-0.5">Business Model</div>
                                 <div className="text-sm text-brand-dark/70">
-                                  {answers.business_type?.split('(')[0]?.trim() || '—'}
+                                  {(answers.business_model || answers.business_type)?.split('(')[0]?.trim() || '—'}
                                 </div>
                               </div>
                             </div>
@@ -856,10 +856,10 @@ export default function AdminView() {
                           <>
                             {/* Quick context */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                              {answers.business_type && (
+                              {(answers.business_model || answers.business_type) && (
                                 <div className="bg-white/60 rounded-xl p-3">
                                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Model</div>
-                                  <div className="text-sm text-brand-dark font-medium">{answers.business_type?.split('(')[0]?.trim()}</div>
+                                  <div className="text-sm text-brand-dark font-medium">{(answers.business_model || answers.business_type)?.split('(')[0]?.trim()}</div>
                                 </div>
                               )}
                               {latestIntake?.track && (

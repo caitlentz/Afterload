@@ -328,7 +328,7 @@ export default function App() {
         import('./utils/diagnosticEngine'),
         import('./utils/database'),
       ]);
-      const track = determineTrack(answers.business_type);
+      const track = determineTrack(answers.business_type, answers.business_model);
       const intakeId = await saveIntakeResponse(email, 'initial', answers, track);
       saveDiagnosticResult(email, 'preview', preview, intakeId || undefined);
 
@@ -359,7 +359,7 @@ export default function App() {
         import('./utils/diagnosticEngine'),
         import('./utils/database'),
       ]);
-      const track = determineTrack(merged.business_type);
+      const track = determineTrack(merged.business_type, merged.business_model);
       saveIntakeResponse(email, 'deep', merged, track);
 
       // Notify admin of deep intake completion (fire-and-forget)

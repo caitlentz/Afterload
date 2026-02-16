@@ -75,6 +75,23 @@ export type IntakeResponse = {
   superpower_1?: string;
   superpower_2?: string;
 
+  // New Universal Intake (v2)
+  business_model?: string;
+  revenue_generation?: string;
+  two_week_absence?: string;
+  final_decisions?: string;
+  project_stall?: string;
+  growth_limiter?: string;
+  process_documentation?: string;
+  roles_handled?: string;
+  client_relationship?: string;
+  key_member_leaves?: string;
+  pricing_decisions?: string;
+  interruption_frequency?: string;
+  hiring_situation?: string;
+  free_capacity?: string;
+  current_state?: string;
+
   // Track Specific
   gatekeeper_protocol?: string;
   handoff_dependency?: string;
@@ -247,7 +264,15 @@ function docStateIncludes(docState: string | string[] | undefined, search: strin
   return docState.toLowerCase().includes(search.toLowerCase());
 }
 
-export function determineTrack(businessType: string | undefined): 'A' | 'B' | 'C' {
+export function determineTrack(businessType: string | undefined, businessModel?: string): 'A' | 'B' | 'C' {
+  // Prefer new business_model (v2 intake) when available
+  if (businessModel) {
+    const lower = businessModel.toLowerCase();
+    if (lower.includes('standardized')) return 'A';
+    if (lower.includes('advisory') || lower.includes('coaching')) return 'C';
+    return 'B'; // Creative, Expert, Hybrid → Decision-Heavy
+  }
+  // Fallback to old business_type for existing clients
   if (!businessType) return 'B'; // Default to Decision-Heavy
   const lower = businessType.toLowerCase();
   if (lower.includes('logistics') || lower.includes('trades') || lower.includes('standardized')) return 'A'; // Time-Bound
@@ -314,6 +339,41 @@ function calculateFounderRisk(data: IntakeResponse, track: 'A' | 'B' | 'C'): Com
   if (data.has_delegation_support?.includes('No')) {
     score += 8;
     signals.push('No manager or operations person to delegate to');
+  }
+
+  // --- v2 intake signals ---
+  if (data.two_week_absence?.includes('Revenue drops immediately')) {
+    score += 15; signals.push('Revenue drops immediately if founder steps away');
+  } else if (data.two_week_absence?.includes('Work slows significantly')) {
+    score += 10; signals.push('Work slows significantly without founder');
+  } else if (data.two_week_absence?.includes('Team continues but escalates')) {
+    score += 5;
+  }
+
+  if (data.client_relationship?.includes('Clients hire me specifically')) {
+    score += 10; signals.push('Clients hire the founder specifically');
+  } else if (data.client_relationship?.includes('expect me involved')) {
+    score += 6;
+  }
+
+  if (data.revenue_generation?.includes('Founder delivers majority')) {
+    score += 12; signals.push('Founder delivers majority of revenue-generating work');
+  } else if (data.revenue_generation?.includes('Team delivers, founder reviews')) {
+    score += 6;
+  }
+
+  if (data.final_decisions?.includes('Always me')) {
+    score += 10; signals.push('All final decisions run through founder');
+  } else if (data.final_decisions?.includes('Mostly me')) {
+    score += 6;
+  }
+
+  if (data.roles_handled?.includes('7+')) {
+    score += 10; signals.push('Founder personally handles 7+ roles');
+  } else if (data.roles_handled?.includes('5–6')) {
+    score += 6; signals.push('Founder personally handles 5-6 roles');
+  } else if (data.roles_handled?.includes('3–4')) {
+    score += 3;
   }
 
   score = Math.min(score, 100);
@@ -435,6 +495,25 @@ function calculateDelegationReadiness(data: IntakeResponse, track: 'A' | 'B' | '
     signals.push('Team can\'t spend $100 without approval');
   }
 
+  // --- v2 intake signals ---
+  if (data.process_documentation?.includes('Fully documented and followed')) {
+    score += 20; signals.push('Processes fully documented and followed — delegation-ready');
+  } else if (data.process_documentation?.includes('Documented but not used')) {
+    score += 10; signals.push('Docs exist but aren\'t followed — activation needed');
+  } else if (data.process_documentation?.includes('Light documentation')) {
+    score += 5;
+  } else if (data.process_documentation?.includes('Mostly in my head')) {
+    signals.push('Processes live in founder\'s head — extraction needed before delegation');
+  }
+
+  if (data.final_decisions?.includes('Shared with senior team')) {
+    score += 15; signals.push('Decision-making already shared with senior team');
+  } else if (data.final_decisions?.includes('Rarely me')) {
+    score += 20; signals.push('Founder rarely makes final decisions — strong delegation');
+  } else if (data.final_decisions?.includes('Always me')) {
+    signals.push('All decisions centralized — delegation path not yet built');
+  }
+
   score = Math.max(Math.min(score, 100), 0);
   const level = score >= 60 ? 'READY' : score >= 40 ? 'CLOSE' : score >= 20 ? 'NOT_YET' : 'BLOCKED';
   return { score, level, signals };
@@ -492,6 +571,29 @@ function calculateBurnoutRisk(data: IntakeResponse, track: 'A' | 'B' | 'C'): Com
     score += 10; signals.push('Financial pressure compounds operational stress');
   } else if (data.profitability_gut_check?.includes('cash is always tight')) {
     score += 8; signals.push('Cash flow pressure despite revenue');
+  }
+
+  // --- v2 intake signals ---
+  if (data.interruption_frequency?.includes('Constantly throughout the day')) {
+    score += 10; signals.push('Constant interruptions throughout the day');
+  } else if (data.interruption_frequency?.includes('Multiple times daily')) {
+    score += 6;
+  }
+
+  if (data.current_state?.includes('Chaotic and reactive')) {
+    score += 25; signals.push('Operating in chaotic, reactive mode');
+  } else if (data.current_state?.includes('Growing but strained')) {
+    score += 15; signals.push('Growth is straining capacity');
+  } else if (data.current_state?.includes('Profitable but founder-heavy')) {
+    score += 8;
+  }
+
+  if (data.roles_handled?.includes('7+')) {
+    score += 10; signals.push('Wearing 7+ hats — cognitive load is extreme');
+  } else if (data.roles_handled?.includes('5–6')) {
+    score += 6; signals.push('Handling 5-6 roles personally');
+  } else if (data.roles_handled?.includes('3–4')) {
+    score += 3;
   }
 
   score = Math.min(score, 100);
@@ -610,6 +712,29 @@ function calculateDecisionLoad(data: IntakeResponse): { level: 'HIGH' | 'MODERAT
     score += 10;
   }
 
+  // --- v2 intake signals ---
+  if (data.final_decisions?.includes('Always me')) {
+    score += 15; signals.push('All final decisions made by founder');
+  } else if (data.final_decisions?.includes('Mostly me')) {
+    score += 10; signals.push('Most decisions still route through founder');
+  }
+
+  if (data.interruption_frequency?.includes('Constantly throughout the day')) {
+    score += 10; signals.push('Constant decision interruptions throughout the day');
+  } else if (data.interruption_frequency?.includes('Multiple times daily')) {
+    score += 6;
+  }
+
+  if (data.pricing_decisions?.includes('Only by me')) {
+    score += 10; signals.push('All pricing decisions centralized with founder');
+  } else if (data.pricing_decisions?.includes('I approve final pricing')) {
+    score += 5;
+  }
+
+  if (data.project_stall?.includes('Waiting on my approval')) {
+    score += 10; signals.push('Projects stall waiting on founder approval');
+  }
+
   const level = score >= 50 ? 'HIGH' : score >= 25 ? 'MODERATE' : 'LOW';
   return { level, signals, score };
 }
@@ -634,6 +759,15 @@ function calculateFlowFriction(data: IntakeResponse): { level: 'HIGH' | 'MODERAT
   // Cross-reference: initial intake
   if (data.project_pile_up?.includes('Waiting on me')) {
     score += 10; signals.push('Projects pile up waiting on founder (initial intake)');
+  }
+
+  // --- v2 intake signals ---
+  if (data.project_stall?.includes('Waiting on my approval')) {
+    score += 10; signals.push('Projects stall waiting on founder approval');
+  } else if (data.project_stall?.includes('Waiting on team execution')) {
+    score += 6; signals.push('Projects stall waiting on team execution');
+  } else if (data.project_stall?.includes('Hiring/staffing gaps')) {
+    score += 8; signals.push('Projects stall due to staffing gaps');
   }
 
   const level = score >= 40 ? 'HIGH' : score >= 20 ? 'MODERATE' : 'LOW';
@@ -662,6 +796,15 @@ function calculateContextSwitching(data: IntakeResponse): { level: 'HIGH' | 'MOD
   // Cross-reference: initial intake
   if (data.context_switching?.includes('Non-stop') || data.context_switching?.includes('10+')) {
     score += 15; signals.push(`Initial intake: ${data.context_switching} interruptions/day`);
+  }
+
+  // --- v2 intake signals ---
+  if (data.interruption_frequency?.includes('Constantly throughout the day')) {
+    score += 15; signals.push('Constantly interrupted for decisions throughout the day');
+  } else if (data.interruption_frequency?.includes('Multiple times daily')) {
+    score += 10; signals.push('Multiple daily decision interruptions');
+  } else if (data.interruption_frequency?.includes('A few times per week')) {
+    score += 3;
   }
 
   const level = score >= 40 ? 'HIGH' : score >= 20 ? 'MODERATE' : 'LOW';
@@ -1558,7 +1701,7 @@ function generateExecutiveSummary(
   topPressurePoint?: string
 ): string {
   const businessName = data.businessName || 'Your business';
-  const track = determineTrack(data.business_type);
+  const track = determineTrack(data.business_type, data.business_model);
   const nowCount = delegationMatrix.filter(d => d.readiness === 'NOW').length;
   const hasFrictionCost = frictionCost.totalRange.high > 0;
   const shape = constraintProfile?.shape || 'DOMINANT';
@@ -1827,7 +1970,7 @@ function extractKeywordBoosts(data: IntakeResponse): KeywordBoosts {
 // ------------------------------------------------------------------
 
 export function runDiagnostic(data: IntakeResponse): DiagnosticResult {
-  const track = determineTrack(data.business_type);
+  const track = determineTrack(data.business_type, data.business_model);
   const trackLabel = track === 'A' ? 'Time-Bound' : track === 'B' ? 'Decision-Heavy' : 'Founder-Led';
 
   // Calculate core scores
