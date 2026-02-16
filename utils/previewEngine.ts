@@ -1,4 +1,7 @@
 import { IntakeResponse } from './diagnosticEngine';
+import { normalizeIntake } from './normalizeIntake';
+export { getPreviewEligibility } from './normalizeIntake';
+export type { PreviewEligibility } from './normalizeIntake';
 
 // ------------------------------------------------------------------
 // PREVIEW ENGINE v2
@@ -50,10 +53,10 @@ type DimensionScores = {
 };
 
 const DIMENSION_LABELS: Record<string, string> = {
-  founderCentralization: 'Revenue Concentration',
-  structuralFragility: 'Structural Fragility',
-  decisionBottleneck: 'Decision Centralization',
-  capacityConstraint: 'Capacity Ceiling',
+  founderCentralization: 'Founder Dependency',
+  structuralFragility: 'System Fragility',
+  decisionBottleneck: 'Decision Bottleneck',
+  capacityConstraint: 'Capacity Constraint',
 };
 
 function scoreDimensions(data: IntakeResponse): DimensionScores {
@@ -231,46 +234,48 @@ function generateConstraintSnapshot(
   businessName: string
 ): string {
   const parts: string[] = [];
+  const name = businessName || 'Your Business';
 
   // Sentence 1: What's concentrated
   if (primary.type === 'founderCentralization') {
-    parts.push(`${businessName} operates with revenue generation and client relationships concentrated in the founder.`);
+    parts.push(`${name} operates with key functions concentrated around the founder.`);
   } else if (primary.type === 'decisionBottleneck') {
-    parts.push(`${businessName} runs on a decision model where most approvals and direction flow through a single point.`);
+    parts.push(`${name} runs on a decision model where most approvals flow through a single point.`);
   } else if (primary.type === 'structuralFragility') {
-    parts.push(`${businessName} lacks the structural redundancy to absorb disruption — processes, knowledge, and systems are under-formalized.`);
+    parts.push(`${name} has limited structural redundancy — processes and knowledge are under-formalized.`);
   } else {
-    parts.push(`${businessName} is operating at or near its capacity ceiling, with growth constrained by available resources.`);
+    parts.push(`${name} is operating near its capacity ceiling, with growth constrained by available resources.`);
   }
 
-  // Sentence 2: How growth affects it
-  if (data.current_state?.includes('Growing but strained')) {
-    parts.push('Current growth is amplifying this pressure rather than resolving it.');
-  } else if (data.current_state?.includes('Stable but capped')) {
-    parts.push('The business has reached a plateau where this constraint prevents further scaling.');
-  } else if (data.current_state?.includes('Chaotic and reactive')) {
-    parts.push('Day-to-day operations are reactive, indicating this constraint is already producing friction.');
-  } else if (data.current_state?.includes('Profitable but founder-heavy')) {
-    parts.push('Profitability is intact, but growth is anchored to the founder\'s personal bandwidth.');
+  // Sentence 2: How growth affects it (safe if current_state missing)
+  const state = data.current_state || '';
+  if (state.includes('Growing but strained')) {
+    parts.push('Current growth is adding pressure to this pattern rather than resolving it.');
+  } else if (state.includes('Stable but capped')) {
+    parts.push('The business has reached a plateau where this constraint limits further scaling.');
+  } else if (state.includes('Chaotic and reactive')) {
+    parts.push('Day-to-day operations are reactive, indicating this pattern is already producing friction.');
+  } else if (state.includes('Profitable but founder-heavy')) {
+    parts.push('Margins are intact, but growth is anchored to the founder\'s direct involvement.');
   } else {
     parts.push('As demand increases, this pattern will compound.');
   }
 
-  // Sentence 3: Where strain shows up
+  // Sentence 3: Most visible signal (safe if any field missing)
   if (data.interruption_frequency?.includes('Constantly')) {
-    parts.push('The clearest symptom: constant interruptions for decisions throughout the day.');
+    parts.push('Most visible signal: constant interruptions for decisions throughout the day.');
   } else if (data.two_week_absence?.includes('Revenue drops immediately')) {
-    parts.push('The clearest symptom: revenue stops the moment the founder steps away.');
+    parts.push('Most visible signal: operations stall when the founder steps away.');
   } else if (data.project_stall?.includes('Waiting on my approval')) {
-    parts.push('The clearest symptom: work stalls waiting on founder approval.');
+    parts.push('Most visible signal: work stalls waiting on founder approval.');
   } else if (data.process_documentation?.includes('Mostly in my head')) {
-    parts.push('The clearest symptom: institutional knowledge lives entirely in the founder\'s head.');
+    parts.push('Most visible signal: institutional knowledge lives in the founder\'s head rather than in systems.');
   } else if (data.key_member_leaves?.includes('Revenue drops')) {
-    parts.push('The clearest symptom: losing a key team member directly impacts revenue.');
+    parts.push('Most visible signal: losing a key team member directly impacts delivery capacity.');
   } else if (data.roles_handled?.includes('7+')) {
-    parts.push(`The clearest symptom: the founder is personally handling 7+ operational roles.`);
+    parts.push('Most visible signal: the founder is handling 7+ operational roles directly.');
   } else {
-    parts.push(`The ${secondary.label.toLowerCase()} compounds the primary constraint, creating multiple pressure points.`);
+    parts.push(`${secondary.label} reinforces the primary constraint, creating overlapping pressure.`);
   }
 
   return parts.join(' ');
@@ -327,44 +332,39 @@ function generateCompoundNarrative(
 }
 
 function generateExposureMetrics(data: IntakeResponse): string[] {
-  const metrics: string[] = [];
+  const signals: string[] = [];
 
-  // Revenue model
+  // Delivery model
   if (data.revenue_generation) {
-    metrics.push(`Revenue model: ${data.revenue_generation}`);
+    signals.push(`Delivery model: ${data.revenue_generation}`);
   }
 
   // Decision authority
   if (data.final_decisions) {
-    metrics.push(`Decision authority: ${data.final_decisions}`);
+    signals.push(`Decision authority: ${data.final_decisions}`);
   }
 
   // Documentation maturity
   if (data.process_documentation) {
-    metrics.push(`Documentation: ${data.process_documentation}`);
+    signals.push(`Documentation: ${data.process_documentation}`);
   }
 
   // Roles
   if (data.roles_handled) {
-    metrics.push(`Founder roles: ${data.roles_handled}`);
+    signals.push(`Founder roles: ${data.roles_handled}`);
   }
 
   // Interruption load
   if (data.interruption_frequency) {
-    metrics.push(`Decision interruptions: ${data.interruption_frequency}`);
+    signals.push(`Interruption load: ${data.interruption_frequency}`);
   }
 
-  // Pricing control
-  if (data.pricing_decisions && data.pricing_decisions !== 'Fixed pricing structure') {
-    metrics.push(`Pricing authority: ${data.pricing_decisions}`);
-  }
-
-  // Client structure
+  // Client structure (only if clearly founder-dependent)
   if (data.client_relationship && (data.client_relationship.includes('hire me specifically') || data.client_relationship.includes('expect me'))) {
-    metrics.push(`Client structure: ${data.client_relationship}`);
+    signals.push(`Client dependency: ${data.client_relationship}`);
   }
 
-  return metrics.slice(0, 5); // max 5
+  return signals.slice(0, 5);
 }
 
 function generateContinuityRisk(data: IntakeResponse): string {
@@ -401,29 +401,29 @@ function generateLoadTrajectory(data: IntakeResponse): string {
 
   if (state.includes('Chaotic and reactive')) {
     if (limiter.includes('Not enough time')) {
-      return 'If nothing changes, the reactive operating mode will burn through the founder\'s remaining capacity until something breaks — quality, health, or the team.';
+      return 'The current operating mode is consuming available capacity faster than the business can replenish it. Without structural changes, output quality or team stability will be the first pressure point.';
     }
     if (limiter.includes('Operational inefficiency')) {
-      return 'If nothing changes, operational chaos will continue to consume capacity that should go toward growth.';
+      return 'Operational friction is absorbing capacity that would otherwise support growth. The trajectory stays flat until the friction is addressed.';
     }
-    return 'If nothing changes, the reactive pattern will intensify as the business takes on more without structural support.';
+    return 'The reactive pattern will compound as workload increases without additional structural support.';
   }
   if (state.includes('Growing but strained')) {
     if (limiter.includes('Not enough qualified staff')) {
-      return 'If nothing changes, growth will continue outpacing the team\'s ability to deliver — hiring lag becomes a quality and retention risk.';
+      return 'Growth is outpacing the team\'s delivery capacity. The gap between demand and staffing is the primary constraint on trajectory.';
     }
     if (limiter.includes('Not enough time')) {
-      return 'If nothing changes, growth will keep compressing the founder\'s bandwidth until the constraint forces a plateau or a breakdown.';
+      return 'Growth is compressing available bandwidth. The trajectory points toward a plateau unless capacity is restructured.';
     }
-    return 'If nothing changes, growth will keep straining the current structure until it either plateaus or fractures.';
+    return 'Growth is adding load to a structure that hasn\'t scaled with it. The current trajectory leads to a capacity ceiling.';
   }
   if (state.includes('Stable but capped')) {
-    return 'If nothing changes, the business will continue performing at its current ceiling — no crisis, but no upside either.';
+    return 'The business is performing at its current structural ceiling. Trajectory is flat — stable, but with limited upside under the existing model.';
   }
   if (state.includes('Profitable but founder-heavy')) {
-    return 'If nothing changes, profitability will hold as long as the founder does — but the business has no pathway to scale or exit.';
+    return 'Current margins are intact, but they depend on the founder\'s direct involvement. The trajectory holds as long as that involvement continues.';
   }
-  return 'If nothing changes, the current constraints will gradually tighten as operational demands increase.';
+  return 'Current constraints will tighten incrementally as operational demands increase.';
 }
 
 function generateStructuralTension(data: IntakeResponse): string {
@@ -506,7 +506,8 @@ function generateStructuralTension(data: IntakeResponse): string {
 // MAIN EXPORT
 // ------------------------------------------------------------------
 
-export function runPreviewDiagnostic(data: IntakeResponse): PreviewResult {
+export function runPreviewDiagnostic(raw: IntakeResponse): PreviewResult {
+  const data = normalizeIntake(raw);
   const businessName = data.businessName || 'Your Business';
   const scores = scoreDimensions(data);
   const ranked = rankDimensions(scores);
