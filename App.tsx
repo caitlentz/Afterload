@@ -103,6 +103,8 @@ export default function App() {
     return saved ? JSON.parse(saved) : null;
   });
 
+  const [questionPackStatus, setQuestionPackStatus] = useState<'none' | 'draft' | 'shipped'>('none');
+
   // TEMPORARY: Paywall disabled — treat everyone as paid
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>({
     depositPaid: true,
@@ -115,6 +117,14 @@ export default function App() {
 
   // Clear chunk reload flag on successful mount
   useEffect(() => { sessionStorage.removeItem('afterload_chunk_reload'); }, []);
+
+  // Fetch question pack status when user email is available
+  useEffect(() => {
+    if (!userEmail) return;
+    import('./utils/database').then(({ fetchQuestionPackStatus }) =>
+      fetchQuestionPackStatus(userEmail).then(setQuestionPackStatus)
+    );
+  }, [userEmail]);
 
   // Helper: fetch payment status for a given email
   // TEMPORARY: Paywall disabled — always return paid
@@ -530,6 +540,7 @@ export default function App() {
                   intakeData={intakeData}
                   diagnosticResult={null}
                   paymentStatus={paymentStatus}
+                  questionPackStatus={questionPackStatus}
                   onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
                   onViewFullReport={() => navigate(View.FULL_REPORT)}
                   onDiagnosticComplete={handleInitialIntakeComplete}

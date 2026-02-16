@@ -251,6 +251,69 @@ export async function fetchReportOverridesByEmail(email: string): Promise<Report
 }
 
 // ------------------------------------------------------------------
+// QUESTION PACKS
+// ------------------------------------------------------------------
+
+export type QuestionPack = {
+  questions: any[];     // ClarityQuestion[]
+  pack_meta: any;       // PackMeta
+  status: 'draft' | 'shipped' | 'custom';
+  updated_at?: string;
+};
+
+export async function saveQuestionPack(
+  clientId: string,
+  questions: any[],
+  packMeta: any,
+  status: 'draft' | 'shipped' | 'custom' = 'draft'
+): Promise<boolean> {
+  const { error } = await supabase.rpc('admin_save_question_pack', {
+    p_client_id: clientId,
+    p_questions: questions,
+    p_pack_meta: packMeta,
+    p_status: status,
+  });
+  if (error) console.error('saveQuestionPack error:', error);
+  return !error;
+}
+
+export async function fetchQuestionPack(clientId: string): Promise<QuestionPack | null> {
+  const { data, error } = await supabase.rpc('admin_get_question_pack', {
+    p_client_id: clientId,
+  });
+  if (error) {
+    console.error('fetchQuestionPack error:', error);
+    return null;
+  }
+  return data as QuestionPack | null;
+}
+
+export async function fetchQuestionPackStatus(email: string): Promise<'none' | 'draft' | 'shipped'> {
+  const { data, error } = await supabase.rpc('get_question_pack_status', {
+    p_email: email.toLowerCase(),
+  });
+  if (error) {
+    console.error('fetchQuestionPackStatus error:', error);
+    return 'none';
+  }
+  const status = data as string;
+  if (status === 'shipped' || status === 'custom') return 'shipped';
+  if (status === 'draft') return 'draft';
+  return 'none';
+}
+
+export async function fetchShippedQuestionPack(email: string): Promise<QuestionPack | null> {
+  const { data, error } = await supabase.rpc('get_shipped_question_pack', {
+    p_email: email.toLowerCase(),
+  });
+  if (error) {
+    console.error('fetchShippedQuestionPack error:', error);
+    return null;
+  }
+  return data as QuestionPack | null;
+}
+
+// ------------------------------------------------------------------
 // PAYMENT STATUS
 // ------------------------------------------------------------------
 

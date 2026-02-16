@@ -27,6 +27,7 @@ interface DashboardProps {
   intakeData: IntakeResponse | null;
   diagnosticResult: DiagnosticResult | null;
   paymentStatus: PaymentStatus;
+  questionPackStatus?: 'none' | 'draft' | 'shipped';
   onViewReport: () => void;
   onViewFullReport: () => void;
   onDiagnosticComplete: (answers: IntakeResponse, password?: string) => void;
@@ -120,6 +121,7 @@ export default function Dashboard({
   intakeData,
   diagnosticResult,
   paymentStatus,
+  questionPackStatus = 'none',
   onViewReport,
   onViewFullReport,
   onDiagnosticComplete,
@@ -152,7 +154,7 @@ export default function Dashboard({
   // Determine journey stage
   type Stage = 'fresh' | 'preview_ready' | 'deep_complete' | 'paid';
   let stage: Stage = 'fresh';
-  if (paymentStatus.paid) stage = 'paid';
+  if (hasDeepIntake && paymentStatus.paid) stage = 'paid';
   else if (hasDeepIntake) stage = 'deep_complete';
   else if (hasInitialIntake) stage = 'preview_ready';
 
@@ -434,23 +436,39 @@ export default function Dashboard({
                 </div>
               </button>
 
-              <button
-                onClick={onResumeIntake}
-                className="w-full text-left bg-brand-dark text-white p-6 md:p-8 rounded-[1.5rem] shadow-lg hover:shadow-xl transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-serif text-xl mb-1">Continue to Clarity Session</h3>
-                    <p className="text-white/60 text-sm font-lora">
-                      25 targeted questions · About 10 minutes · This is where we find the real answers
-                    </p>
+              {questionPackStatus === 'shipped' ? (
+                <button
+                  onClick={onResumeIntake}
+                  className="w-full text-left bg-brand-dark text-white p-6 md:p-8 rounded-[1.5rem] shadow-lg hover:shadow-xl transition-all group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-serif text-xl mb-1">Start Clarity Session</h3>
+                      <p className="text-white/60 text-sm font-lora">
+                        25 targeted questions · About 10 minutes · This is where we find the real answers
+                      </p>
+                    </div>
+                    <ArrowRight
+                      size={18}
+                      className="text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all"
+                    />
                   </div>
-                  <ArrowRight
-                    size={18}
-                    className="text-white/60 group-hover:text-white group-hover:translate-x-1 transition-all"
-                  />
+                </button>
+              ) : (
+                <div className="w-full bg-white/70 backdrop-blur-xl p-6 md:p-8 rounded-[1.5rem] border border-white/80">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                      <Sparkles size={16} />
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-lg text-brand-dark">Preparing your personalized clarity questions</h3>
+                    </div>
+                  </div>
+                  <p className="text-brand-dark/50 text-sm font-lora ml-11">
+                    We're building a custom set of questions based on your initial intake. You'll be notified when they're ready.
+                  </p>
                 </div>
-              </button>
+              )}
             </div>
           )}
 
