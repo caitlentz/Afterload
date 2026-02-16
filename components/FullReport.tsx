@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import {
   ArrowLeft, Printer, AlertTriangle, Check, Lock, Clock, Activity,
   Shield, Sparkles, Eye, ChevronRight, Target, TrendingUp, Zap, Heart,
@@ -9,6 +9,7 @@ import {
   FrictionCostEstimate, ExtractionReadiness, DelegationItem,
   EnrichedPhase, EnrichedPressurePoint
 } from '../utils/diagnosticEngine';
+import { fetchReportOverridesByEmail, ReportOverride } from '../utils/database';
 
 // ============================================================
 // PROPS
@@ -16,7 +17,15 @@ import {
 
 interface FullReportProps {
   intakeData: IntakeResponse | null;
+  userEmail?: string | null;
   onBack: () => void;
+}
+
+// Helper to build override lookup map
+function buildOverrideMap(overrides: ReportOverride[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  overrides.forEach(o => { map[o.section_key] = o.custom_content; });
+  return map;
 }
 
 // ============================================================
@@ -214,14 +223,14 @@ const ReportHeader = ({ report, onBack }: { report: ReportData; onBack: () => vo
 // SECTION 2: EXECUTIVE SUMMARY
 // ============================================================
 
-const ExecutiveSummary = ({ report }: { report: ReportData }) => (
+const ExecutiveSummary = ({ report, overrideMap }: { report: ReportData; overrideMap: Record<string, string> }) => (
   <section className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.1s_both]">
     <div className={sectionLabel}>Executive Summary</div>
     <div className={darkCard}>
       <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
       <div className="relative z-10">
         <p className="font-lora text-white/85 text-lg md:text-xl leading-relaxed mb-8">
-          {report.executiveSummary}
+          {overrideMap['executive_summary'] || report.executiveSummary}
         </p>
         {report.frictionCost.totalRange.high > 0 && (
           <div className="bg-white/10 rounded-2xl p-6 text-center">
@@ -343,7 +352,7 @@ const constraintLabels: Record<string, string> = {
   'UNKNOWN': 'Under Analysis',
 };
 
-const PrimaryConstraint = ({ report }: { report: ReportData }) => (
+const PrimaryConstraint = ({ report, overrideMap }: { report: ReportData; overrideMap: Record<string, string> }) => (
   <section className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.2s_both]">
     <div className={sectionLabel}>Your Primary Constraint</div>
     <div className={darkCard}>
@@ -357,7 +366,7 @@ const PrimaryConstraint = ({ report }: { report: ReportData }) => (
           {constraintLabels[report.primaryConstraint] || report.primaryConstraint}
         </h2>
         <p className="font-lora text-white/75 text-lg leading-relaxed mb-6">
-          {report.constraintDescription}
+          {overrideMap['primary_constraint'] || report.constraintDescription}
         </p>
         <div className="bg-white/10 rounded-2xl p-6">
           <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-2">
@@ -370,6 +379,26 @@ const PrimaryConstraint = ({ report }: { report: ReportData }) => (
             )} The roadmap below is designed to relieve this specific pressure point.
           </p>
         </div>
+        {/* Secondary constraint if compound */}
+        {report.constraintProfile?.shape === 'COMPOUND' && report.constraintProfile.secondaryConstraint && (
+          <div className="mt-4 bg-white/5 rounded-xl p-4 border border-white/10">
+            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/30 mb-1">Secondary Constraint</div>
+            <p className="text-white/60 text-sm font-lora">
+              <span className="text-white/80 font-medium">
+                {constraintLabels[report.constraintProfile.secondaryConstraint] || report.constraintProfile.secondaryConstraint}
+              </span>
+              {' — '}This is reinforcing the primary constraint and will need attention alongside it.
+            </p>
+          </div>
+        )}
+        {report.constraintProfile?.shape === 'DISTRIBUTED' && (
+          <div className="mt-4 bg-white/5 rounded-xl p-4 border border-white/10">
+            <div className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/30 mb-1">Distributed Constraint</div>
+            <p className="text-white/60 text-sm font-lora">
+              Pressure is spread across cognitive, structural, and capacity dimensions. There isn't one dominant bottleneck — which means improvements in any area will create relief.
+            </p>
+          </div>
+        )}
       </div>
     </div>
   </section>
@@ -446,13 +475,16 @@ const ProcessHealthMap = ({ heatmap }: { heatmap: HeatmapStage[] }) => (
 // SECTION 6: PRESSURE POINTS
 // ============================================================
 
-const PressurePoints = ({ points }: { points: EnrichedPressurePoint[] }) => {
+const PressurePoints = ({ points, overrideMap }: { points: EnrichedPressurePoint[]; overrideMap: Record<string, string> }) => {
   if (points.length === 0) return null;
   return (
     <section className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.3s_both]">
       <div className={sectionLabel}>Pressure Points</div>
       <div className="space-y-4">
-        {points.map((point, idx) => (
+        {points.map((point, idx) => {
+          const overrideKey = `pressure_point_${idx}`;
+          const overrideFinding = overrideMap[overrideKey];
+          return (
           <div key={idx} className={`${glassCard} p-6 md:p-8`}>
             <div className="flex items-start gap-4 mb-4">
               <div className="w-8 h-8 rounded-full bg-brand-dark/5 flex items-center justify-center shrink-0 mt-0.5">
@@ -460,7 +492,7 @@ const PressurePoints = ({ points }: { points: EnrichedPressurePoint[] }) => {
               </div>
               <div className="flex-1">
                 <h3 className="font-serif text-xl text-brand-dark mb-1">{point.title}</h3>
-                <p className="text-sm text-brand-dark/60 font-lora leading-relaxed">{point.finding}</p>
+                <p className="text-sm text-brand-dark/60 font-lora leading-relaxed">{overrideFinding || point.finding}</p>
               </div>
             </div>
 
@@ -497,7 +529,8 @@ const PressurePoints = ({ points }: { points: EnrichedPressurePoint[] }) => {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );
@@ -507,12 +540,12 @@ const PressurePoints = ({ points }: { points: EnrichedPressurePoint[] }) => {
 // SECTION 7: SUCCESS TRAP
 // ============================================================
 
-const SuccessTrap = ({ narrative }: { narrative: string }) => (
+const SuccessTrap = ({ narrative, overrideMap }: { narrative: string; overrideMap: Record<string, string> }) => (
   <section className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.35s_both]">
     <div className={sectionLabel}>The Success Trap</div>
     <div className="bg-white/40 backdrop-blur-md p-8 md:p-10 rounded-[2rem] border border-white/60">
       <p className="font-lora text-brand-dark/70 text-lg md:text-xl leading-relaxed italic">
-        {narrative}
+        {overrideMap['success_trap'] || narrative}
       </p>
     </div>
   </section>
@@ -716,14 +749,16 @@ const phaseIcons = [
   <TrendingUp size={18} />,
 ];
 
-const YourRoadmap = ({ phases }: { phases: EnrichedPhase[] }) => (
+const YourRoadmap = ({ phases, overrideMap }: { phases: EnrichedPhase[]; overrideMap: Record<string, string> }) => (
   <section className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.45s_both]">
     <div className={sectionLabel}>Your Roadmap</div>
     <div className="space-y-4 relative">
       {/* Connector line */}
       <div className="absolute left-6 top-8 bottom-8 w-px bg-brand-dark/10 hidden md:block print:hidden" />
 
-      {phases.map((phase, idx) => (
+      {phases.map((phase, idx) => {
+        const phaseOverride = overrideMap[`phase_${idx}`];
+        return (
         <div key={idx} className={`${glassCard} p-6 md:p-8 relative`}>
           <div className="flex items-start gap-4 mb-5">
             <div className="w-12 h-12 rounded-full bg-brand-dark text-white flex items-center justify-center shrink-0 relative z-10">
@@ -736,7 +771,7 @@ const YourRoadmap = ({ phases }: { phases: EnrichedPhase[] }) => (
                   {phase.timeframe}
                 </span>
               </div>
-              <p className="text-sm text-brand-dark/50 font-lora leading-relaxed">{phase.description}</p>
+              <p className="text-sm text-brand-dark/50 font-lora leading-relaxed">{phaseOverride || phase.description}</p>
             </div>
           </div>
 
@@ -763,7 +798,8 @@ const YourRoadmap = ({ phases }: { phases: EnrichedPhase[] }) => (
             <p className="text-xs text-brand-dark/60 font-lora">{phase.successCriteria}</p>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   </section>
 );
@@ -884,11 +920,22 @@ const NextSteps = ({ phases, onBack }: { phases: EnrichedPhase[]; onBack: () => 
 // MAIN COMPONENT
 // ============================================================
 
-export default function FullReport({ intakeData, onBack }: FullReportProps) {
+export default function FullReport({ intakeData, userEmail, onBack }: FullReportProps) {
   const report = useMemo(
     () => (intakeData ? runDiagnostic(intakeData).report : null),
     [intakeData]
   );
+
+  const [overrides, setOverrides] = useState<ReportOverride[]>([]);
+
+  // Fetch overrides for this client's report
+  useEffect(() => {
+    const email = userEmail || intakeData?.email;
+    if (!email) return;
+    fetchReportOverridesByEmail(email).then(setOverrides).catch(() => {});
+  }, [userEmail, intakeData?.email]);
+
+  const overrideMap = useMemo(() => buildOverrideMap(overrides), [overrides]);
 
   if (!report) {
     return (
@@ -903,21 +950,77 @@ export default function FullReport({ intakeData, onBack }: FullReportProps) {
     <div className="flex flex-col min-h-screen w-full relative overflow-hidden">
       <ReportHeader report={report} onBack={onBack} />
       <main className="w-full max-w-3xl mx-auto px-6 pb-32 relative z-10">
-        <ExecutiveSummary report={report} />
+        <ExecutiveSummary report={report} overrideMap={overrideMap} />
         <ScoreCards scores={report.compositeScores} />
-        <PrimaryConstraint report={report} />
+        <PrimaryConstraint report={report} overrideMap={overrideMap} />
         <ProcessHealthMap heatmap={report.heatmap} />
-        <PressurePoints points={report.enrichedPressurePoints} />
-        <SuccessTrap narrative={report.successTrapNarrative} />
+        <PressurePoints points={report.enrichedPressurePoints} overrideMap={overrideMap} />
+        <SuccessTrap narrative={report.successTrapNarrative} overrideMap={overrideMap} />
+        {/* Compound Signals */}
+        {report.compoundSignals && report.compoundSignals.length > 0 && (
+          <section className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.37s_both]">
+            <div className={sectionLabel}>Compound Signals</div>
+            <div className="space-y-3">
+              {report.compoundSignals.map((signal: { title: string; finding: string }, idx: number) => (
+                <div key={idx} className={`${glassCard} p-6`}>
+                  <div className="flex items-start gap-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-50 border border-amber-200/50 flex items-center justify-center shrink-0 mt-0.5">
+                      <Layers size={14} className="text-amber-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-serif text-lg text-brand-dark mb-1">{signal.title}</h3>
+                      <p className="text-sm text-brand-dark/60 font-lora leading-relaxed">{signal.finding}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        {/* Contradictions / Signals We Noticed */}
+        {report.contradictions && report.contradictions.length > 0 && (
+          <section className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.38s_both]">
+            <div className={sectionLabel}>Signals We Noticed</div>
+            <div className={`${glassCard} p-6 md:p-8`}>
+              <p className="text-xs text-brand-dark/40 font-lora mb-5">
+                These are patterns where what was reported doesn't quite match the structural data. They're not criticism — they're diagnostic signals worth examining.
+              </p>
+              <div className="space-y-4">
+                {report.contradictions.map((c: { title: string; finding: string }, idx: number) => (
+                  <div key={idx} className="flex items-start gap-3 py-3 border-b border-brand-dark/5 last:border-0">
+                    <div className="w-6 h-6 rounded-full bg-brand-dark/5 flex items-center justify-center shrink-0 mt-0.5">
+                      <Eye size={12} className="text-brand-dark/40" />
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-medium text-brand-dark mb-0.5">{c.title}</h4>
+                      <p className="text-xs text-brand-dark/50 font-lora leading-relaxed">{c.finding}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
         <DelegationReadiness
           extraction={report.extractionReadiness}
           matrix={report.delegationMatrix}
           businessName={report.businessName}
         />
         <FinancialHealthCheck report={report} />
-        <YourRoadmap phases={report.enrichedPhases} />
+        <YourRoadmap phases={report.enrichedPhases} overrideMap={overrideMap} />
         <WhatWeHeard founderVoice={report.founderVoice} businessName={report.businessName} />
         <NextSteps phases={report.enrichedPhases} onBack={onBack} />
+        {/* Additional Notes from admin */}
+        {overrideMap['additional_notes'] && (
+          <section className="mb-12 animate-[fadeInUp_0.6s_ease-out_0.52s_both]">
+            <div className={sectionLabel}>Additional Notes</div>
+            <div className={`${glassCard} p-6 md:p-8`}>
+              <p className="text-sm text-brand-dark/70 font-lora leading-relaxed whitespace-pre-line">
+                {overrideMap['additional_notes']}
+              </p>
+            </div>
+          </section>
+        )}
       </main>
     </div>
   );

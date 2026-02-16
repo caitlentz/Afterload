@@ -458,4 +458,34 @@ export const CLARITY_SESSION_QUESTIONS: ClarityQuestion[] = [
   // Q-FF1: Wait Time Analysis (from B)
   // Q-FF2: Rework Loop (from B)
   // Q-PH3: Sales (from B)
+
+  // ==========================================
+  // SECTION 3: FREE-TEXT DEEP DIVE (UNIVERSAL)
+  // ==========================================
+  {
+    id: 'last_hour_wished_delegated',
+    module: 'Founder Reality',
+    text: 'Think about the last hour you spent on something you wish someone else could handle. What were you doing?',
+    type: 'text',
+    tracks: ['UNIVERSAL'],
+    placeholder: 'e.g., Formatting a proposal, chasing an invoice, re-explaining a process to a team member...',
+    helperText: 'Be specific — the more detail, the more useful your diagnostic becomes.',
+  },
+  {
+    id: 'magic_wand_fix',
+    module: 'Founder Reality',
+    text: 'If you could snap your fingers and fix one thing in your business tomorrow, what would it be?',
+    type: 'text',
+    tracks: ['UNIVERSAL'],
+    placeholder: 'e.g., My team could handle client onboarding without me...',
+  },
+  {
+    id: 'what_keeps_you_up',
+    module: 'Founder Reality',
+    text: 'What is the thing about your business that keeps you up at night or that you avoid thinking about?',
+    type: 'text',
+    tracks: ['UNIVERSAL'],
+    placeholder: 'e.g., I know my prices are too low but I\'m scared to raise them...',
+    helperText: 'This stays between us. Honesty here directly improves your diagnostic.',
+  },
 ];

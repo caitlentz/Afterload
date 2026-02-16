@@ -212,6 +212,19 @@ export type ReportData = {
   enrichedPressurePoints: EnrichedPressurePoint[];
   revenueContext: RevenueScaleContext;
   executiveSummary: string;
+
+  // Multi-constraint profile
+  constraintProfile?: {
+    cognitive: number;
+    structural: number;
+    capacity: number;
+    shape: 'DOMINANT' | 'COMPOUND' | 'DISTRIBUTED';
+    secondaryConstraint?: ConstraintType;
+  };
+
+  // Cross-signal analysis
+  compoundSignals?: Array<{ title: string; finding: string }>;
+  contradictions?: Array<{ title: string; finding: string }>;
 };
 
 export type DiagnosticResult = {
@@ -754,96 +767,154 @@ function generatePressurePoints(
   data: IntakeResponse,
   heatmap: HeatmapStage[],
   founderRisk: CompositeScores['founderRisk'],
-  decisionData: { level: string; signals: string[] },
+  decisionData: { level: string; signals: string[]; score: number },
   pricingHealth: CompositeScores['pricingHealth'],
-  track: 'A' | 'B' | 'C'
+  track: 'A' | 'B' | 'C',
+  burnoutRisk: CompositeScores['burnoutRisk'],
+  delegationReadiness: CompositeScores['delegationReadiness']
 ): ReportData['pressurePoints'] {
-  const points: ReportData['pressurePoints'] = [];
+  // Scored ranking: compute an impact score (0-100) for ALL categories,
+  // sort by impact, return the top 5.
 
-  // 1. Bottleneck stage pressure point
+  type ScoredPoint = ReportData['pressurePoints'][number] & { impactScore: number };
+  const scored: ScoredPoint[] = [];
+
+  // --- 1. Workflow Breaks ---
   const redStages = heatmap.filter(s => s.status === 'RED');
-  if (redStages.length > 0) {
-    points.push({
-      title: `Workflow breaks at ${redStages.map(s => s.name).join(' + ')}`,
-      finding: redStages.map(s => s.signal).join('. '),
-      rootCause: redStages.map(s => {
-        if (s.name === 'Lead Gen') return 'No system captures inbound interest';
-        if (s.name === 'Triage') return 'Every prospect routes through founder';
-        if (s.name === 'Sales') return 'Proposals bottleneck at founder';
-        if (s.name === 'Onboarding') return 'Onboarding is manual and founder-dependent';
-        if (s.name === 'Fulfillment') return 'Team can\'t execute without constant guidance';
-        if (s.name === 'Review') return 'All quality control defaults to founder';
-        return 'Process not defined';
-      }),
-      signal: `${redStages.length} stage(s) in critical state`,
-    });
-  }
+  const redCount = redStages.length;
+  // severity: each RED stage contributes, 1 RED = 40, 2 = 65, 3+ = 85, scale by count
+  const workflowImpact = redCount === 0 ? 10 : Math.min(30 + redCount * 20, 100);
+  scored.push({
+    impactScore: workflowImpact,
+    title: redCount > 0
+      ? `Workflow breaks at ${redStages.map(s => s.name).join(' + ')}`
+      : 'Workflow friction detected',
+    finding: redCount > 0
+      ? redStages.map(s => s.signal).join('. ')
+      : `${heatmap.filter(s => s.status === 'YELLOW').length} stage(s) showing yellow — no critical breaks yet, but friction is building.`,
+    rootCause: redCount > 0
+      ? redStages.map(s => {
+          if (s.name === 'Lead Gen') return 'No system captures inbound interest';
+          if (s.name === 'Triage') return 'Every prospect routes through founder';
+          if (s.name === 'Sales') return 'Proposals bottleneck at founder';
+          if (s.name === 'Onboarding') return 'Onboarding is manual and founder-dependent';
+          if (s.name === 'Fulfillment') return 'Team can\'t execute without constant guidance';
+          if (s.name === 'Review') return 'All quality control defaults to founder';
+          return 'Process not defined';
+        })
+      : ['No critical process failures, but yellow stages indicate emerging friction'],
+    signal: redCount > 0 ? `${redCount} stage(s) in critical state` : 'No stages in critical state',
+  });
 
-  // 2. Founder dependency
-  if (founderRisk.level === 'CRITICAL' || founderRisk.level === 'HIGH') {
-    const rootCauses: string[] = [];
-    if (data.bus_factor_30_day?.includes('collapses')) rootCauses.push('Business collapses without founder');
-    if (data.review_quality_control?.includes('Yes')) rootCauses.push('All deliverables require founder review');
-    if (data.sales_commitment?.includes('Yes')) rootCauses.push('All proposals require founder');
-    if (data.trust_system_drill_down?.includes('Handle it yourself')) rootCauses.push('Fix-it-myself instinct prevents system building');
-    if (rootCauses.length === 0) rootCauses.push('Multiple structural dependencies on founder');
+  // --- 2. Founder Dependency ---
+  scored.push({
+    impactScore: founderRisk.score,
+    title: 'Founder Dependency Risk',
+    finding: `Founder risk score: ${founderRisk.score}/100 (${founderRisk.level})`,
+    rootCause: (() => {
+      const rc: string[] = [];
+      if (data.bus_factor_30_day?.includes('collapses')) rc.push('Business collapses without founder');
+      if (data.review_quality_control?.includes('Yes')) rc.push('All deliverables require founder review');
+      if (data.sales_commitment?.includes('Yes')) rc.push('All proposals require founder');
+      if (data.trust_system_drill_down?.includes('Handle it yourself')) rc.push('Fix-it-myself instinct prevents system building');
+      if (rc.length === 0) rc.push('Multiple structural dependencies on founder');
+      return rc;
+    })(),
+    signal: data.bus_factor_30_day || 'Not assessed',
+  });
 
-    points.push({
-      title: 'Founder Dependency Risk',
-      finding: `Founder risk score: ${founderRisk.score}/100 (${founderRisk.level})`,
-      rootCause: rootCauses,
-      signal: data.bus_factor_30_day || 'Not assessed',
-    });
-  }
+  // --- 3. Cognitive Overload ---
+  scored.push({
+    impactScore: decisionData.score,
+    title: 'Cognitive Overload',
+    finding: `Decision load: ${decisionData.level}. ${decisionData.signals[0] || 'Decision routing through founder'}`,
+    rootCause: (() => {
+      const rc: string[] = [];
+      if (data.micro_decision_frequency?.includes('16+')) rc.push('16+ micro-decisions per day');
+      if (data.gatekeeper_protocol?.includes('pauses work')) rc.push('Team stops work for approval');
+      const threshold = parseDollars(data.financial_authority_threshold);
+      if (threshold <= 100) rc.push(`Team can't authorize more than $${threshold}`);
+      if (rc.length === 0) rc.push('Decision volume routes through founder');
+      return rc;
+    })(),
+    signal: 'Every decision that routes through you is a decision that could have a documented answer',
+  });
 
-  // 3. Decision overload (if applicable)
-  if (decisionData.level === 'HIGH') {
-    const rootCauses: string[] = [];
-    if (data.micro_decision_frequency?.includes('16+')) rootCauses.push('16+ micro-decisions per day');
-    if (data.gatekeeper_protocol?.includes('pauses work')) rootCauses.push('Team stops work for approval');
-    const threshold = parseDollars(data.financial_authority_threshold);
-    if (threshold <= 100) rootCauses.push(`Team can't authorize more than $${threshold}`);
-    if (rootCauses.length === 0) rootCauses.push('Decision volume exceeds sustainable capacity');
+  // --- 4. Rework Loop ---
+  let reworkImpact = 0;
+  if (data.rework_loop?.includes('More than 50%')) reworkImpact = 100;
+  else if (data.rework_loop?.includes('25-50%')) reworkImpact = 70;
+  else if (data.rework_loop?.includes('10-30%')) reworkImpact = 40;
+  // 0 if no rework data or "none"
+  scored.push({
+    impactScore: reworkImpact,
+    title: 'Rework Loop',
+    finding: reworkImpact >= 100
+      ? 'Over 50% of work gets sent back for revision'
+      : reworkImpact >= 70
+      ? '25-50% of work gets sent back — standards gap is costing time'
+      : reworkImpact >= 40
+      ? 'Moderate rework rate (10-30%) — standards documentation would help'
+      : 'Low rework rate — team generally meets expectations',
+    rootCause: [
+      'Standards aren\'t documented — team guesses',
+      data.handoff_dependency?.includes('Always') ? 'Handoffs require founder translation' : 'Unclear "definition of done"',
+    ],
+    signal: reworkImpact >= 70
+      ? 'High rework = hidden time cost + team frustration'
+      : 'Rework rate is manageable but could be reduced with clearer standards',
+  });
 
-    points.push({
-      title: 'Cognitive Overload',
-      finding: `Decision load: ${decisionData.level}. ${decisionData.signals[0] || ''}`,
-      rootCause: rootCauses,
-      signal: 'Every decision that routes through you is a decision that could have a documented answer',
-    });
-  }
+  // --- 5. Pricing Risk ---
+  // Invert pricing health: lower health = higher risk impact
+  const pricingImpact = Math.max(0, 100 - pricingHealth.score);
+  scored.push({
+    impactScore: pricingImpact,
+    title: 'Pricing May Be Amplifying the Bottleneck',
+    finding: `Pricing health score: ${pricingHealth.score}/100 (${pricingHealth.level}). ${pricingHealth.signals[0] || ''}`,
+    rootCause: (() => {
+      const rc: string[] = [];
+      if (data.pricing_confidence?.includes('Not confident') || data.pricing_confidence?.includes('afraid')) rc.push('Undercharging but afraid to raise prices');
+      if (data.pricing_last_raised?.includes('Over 2 years') || data.pricing_last_raised?.includes('never')) rc.push('Prices haven\'t been raised in 2+ years');
+      if (data.profitability_gut_check?.includes('Losing money') || data.profitability_gut_check?.includes('barely surviving')) rc.push('Business is not profitable');
+      if (data.expense_awareness?.includes('not sure')) rc.push('Operating costs unknown — can\'t price accurately without knowing costs');
+      if (rc.length === 0) rc.push('Pricing indicators suggest room for improvement');
+      return rc;
+    })(),
+    signal: 'If the business isn\'t profitable at current capacity, adding more capacity makes the problem worse — not better',
+  });
 
-  // 4. Rework loop (if significant)
-  if (data.rework_loop?.includes('More than 50%')) {
-    points.push({
-      title: 'Rework Loop',
-      finding: 'Over 50% of work gets sent back for revision',
-      rootCause: [
-        'Standards aren\'t documented — team guesses',
-        data.handoff_dependency?.includes('Always') ? 'Handoffs require founder translation' : 'Unclear "definition of done"',
-      ],
-      signal: 'High rework = hidden time cost + team frustration',
-    });
-  }
+  // --- 6. Burnout Risk ---
+  scored.push({
+    impactScore: burnoutRisk.score,
+    title: 'Burnout Risk',
+    finding: `Burnout risk score: ${burnoutRisk.score}/100 (${burnoutRisk.level}). ${burnoutRisk.signals[0] || ''}`,
+    rootCause: burnoutRisk.signals.length > 0 ? burnoutRisk.signals.slice(0, 3) : ['Cumulative operational load'],
+    signal: burnoutRisk.level === 'CRITICAL'
+      ? 'Burnout is not a personal failure — it\'s a system failure. The business is consuming its most important resource.'
+      : 'Current pace may be sustainable short-term, but monitor energy levels',
+  });
 
-  // 5. Pricing health (if critical)
-  if (pricingHealth.level === 'CRITICAL') {
-    const rootCauses: string[] = [];
-    if (data.pricing_confidence?.includes('Not confident') || data.pricing_confidence?.includes('afraid')) rootCauses.push('Undercharging but afraid to raise prices');
-    if (data.pricing_last_raised?.includes('Over 2 years') || data.pricing_last_raised?.includes('never')) rootCauses.push('Prices haven\'t been raised in 2+ years');
-    if (data.profitability_gut_check?.includes('Losing money') || data.profitability_gut_check?.includes('barely surviving')) rootCauses.push('Business is not profitable');
-    if (data.expense_awareness?.includes('not sure')) rootCauses.push('Operating costs unknown — can\'t price accurately without knowing costs');
-    if (rootCauses.length === 0) rootCauses.push('Multiple pricing and profitability warning signs');
+  // --- 7. Delegation Gap ---
+  const delegationGapImpact = founderRisk.score >= 50 ? Math.max(0, 100 - delegationReadiness.score) : Math.max(0, (100 - delegationReadiness.score) * 0.5);
+  scored.push({
+    impactScore: delegationGapImpact,
+    title: 'Delegation Gap',
+    finding: `Founder risk is ${founderRisk.level.toLowerCase()} but delegation readiness is only ${delegationReadiness.score}/100 (${delegationReadiness.level}).`,
+    rootCause: delegationReadiness.signals.length > 0
+      ? delegationReadiness.signals.filter(s => !s.includes('good') && !s.includes('can')).slice(0, 3).concat(
+          delegationReadiness.signals.filter(s => !s.includes('good') && !s.includes('can')).length === 0 ? ['Delegation infrastructure not yet in place'] : []
+        )
+      : ['No clear delegation path exists'],
+    signal: 'The gap between dependency and readiness determines how quickly the founder can step back',
+  });
 
-    points.push({
-      title: 'Pricing May Be Amplifying the Bottleneck',
-      finding: `Pricing health score: ${pricingHealth.score}/100 (${pricingHealth.level}). ${pricingHealth.signals[0] || ''}`,
-      rootCause: rootCauses,
-      signal: 'If the business isn\'t profitable at current capacity, adding more capacity makes the problem worse — not better',
-    });
-  }
+  // Sort by impact score descending, return top 5
+  scored.sort((a, b) => b.impactScore - a.impactScore);
+  const top5 = scored.slice(0, 5);
 
-  return points;
+  // Strip impactScore from the returned objects
+  return top5.map(({ impactScore: _impact, ...rest }) => rest);
 }
 
 // ------------------------------------------------------------------
@@ -1336,6 +1407,142 @@ function enrichPressurePoints(
 }
 
 // ------------------------------------------------------------------
+// CROSS-SIGNAL COMPOUND DETECTION
+// Identifies patterns where two signals together reveal something
+// neither signal shows alone.
+// ------------------------------------------------------------------
+
+function detectCompoundSignals(
+  data: IntakeResponse,
+  heatmap: HeatmapStage[],
+  founderRisk: CompositeScores['founderRisk'],
+  delegationReadiness: CompositeScores['delegationReadiness'],
+  pricingHealth: CompositeScores['pricingHealth'],
+  burnoutRisk: CompositeScores['burnoutRisk'],
+  systemHealth: CompositeScores['systemHealth'],
+  decisionData: { level: string; signals: string[]; score: number }
+): Array<{ title: string; finding: string }> {
+  const signals: Array<{ title: string; finding: string }> = [];
+
+  // Fulfillment GREEN + rework >50% = "Fast delivery, no quality standards"
+  const fulfillmentStage = heatmap.find(s => s.name === 'Fulfillment');
+  if (fulfillmentStage?.status === 'GREEN' && data.rework_loop?.includes('More than 50%')) {
+    signals.push({
+      title: 'Fast delivery, no quality standards',
+      finding: 'The team delivers quickly, but over half of work gets sent back. Speed without standards creates a rework loop that consumes more time than slower, correct delivery would.',
+    });
+  }
+
+  // High founder risk + high delegation readiness = "Psychological constraint, not structural"
+  if (founderRisk.score >= 60 && delegationReadiness.score >= 50) {
+    signals.push({
+      title: 'Psychological constraint, not structural',
+      finding: 'The team and systems are more ready for delegation than the founder\'s behavior reflects. The bottleneck may be identity attachment or trust rather than capability gaps.',
+    });
+  }
+
+  // Critical pricing + high utilization = "Fully booked, still not profitable"
+  if (pricingHealth.level === 'CRITICAL' && data.capacity_utilization?.includes('Overbooked')) {
+    signals.push({
+      title: 'Fully booked, still not profitable',
+      finding: 'The business is at or above capacity but pricing health is critical. More work will not fix this — the unit economics need to change before adding volume.',
+    });
+  }
+
+  // High burnout + low system health = "Burning out because no systems"
+  if (burnoutRisk.score >= 50 && systemHealth.score <= 40) {
+    signals.push({
+      title: 'Burning out because no systems',
+      finding: 'High burnout risk combined with broken or fragile systems. The founder is compensating for missing infrastructure with personal effort — a pattern that accelerates burnout.',
+    });
+  }
+
+  // High decision load + 'Handle it yourself' trust = "Self-reinforcing bottleneck"
+  if (decisionData.score >= 40 && data.trust_system_drill_down?.includes('Handle it yourself')) {
+    signals.push({
+      title: 'Self-reinforcing bottleneck',
+      finding: 'High decision load combined with a fix-it-myself instinct. The founder absorbs decisions that could be delegated, reinforcing the team\'s habit of routing everything upward. Breaking this cycle requires changing the founder\'s default response, not the team\'s behavior.',
+    });
+  }
+
+  // Low system health + low rework = "Fragile stability"
+  const lowRework = !data.rework_loop || data.rework_loop.includes('Less than') || data.rework_loop.includes('none') || data.rework_loop.includes('0');
+  if (systemHealth.score <= 40 && lowRework) {
+    signals.push({
+      title: 'No systems, but team manages — fragile stability',
+      finding: 'Systems are broken or absent, yet rework is low. The team has internalized the founder\'s standards through experience rather than documentation. This works until someone leaves, onboarding happens, or volume increases.',
+    });
+  }
+
+  return signals;
+}
+
+// ------------------------------------------------------------------
+// CONTRADICTION DETECTION
+// Identifies where the founder's self-reported data conflicts
+// with what the operational data shows.
+// ------------------------------------------------------------------
+
+function detectContradictions(
+  data: IntakeResponse,
+  founderRisk: CompositeScores['founderRisk'],
+  delegationReadiness: CompositeScores['delegationReadiness'],
+  burnoutRisk: CompositeScores['burnoutRisk'],
+  pricingHealth: CompositeScores['pricingHealth']
+): Array<{ title: string; finding: string }> {
+  const contradictions: Array<{ title: string; finding: string }> = [];
+
+  // Says delegates well but reviews everything + screens all clients
+  if (delegationReadiness.score >= 40 &&
+      data.review_quality_control?.includes('Yes') &&
+      data.qualification_triage?.includes('personally screen')) {
+    contradictions.push({
+      title: 'Delegation belief vs. control behavior',
+      finding: 'The data suggests delegation readiness, but the founder reviews all deliverables and personally screens every client. The willingness to delegate exists — the behavior hasn\'t followed yet.',
+    });
+  }
+
+  // Team is capable but can't complete work without questions
+  const teamCapable = data.team_capability?.includes('Yes') || data.team_capability?.includes('replicate');
+  const teamDependent = data.handoff_dependency?.includes('Always') || data.rework_loop?.includes('More than 50%');
+  if (teamCapable && teamDependent) {
+    contradictions.push({
+      title: 'Capable team, dependent execution',
+      finding: 'The founder believes the team can replicate their work, but handoffs require constant translation or rework exceeds 50%. Either the team\'s capability is overestimated, or the missing piece is documented standards — not skill.',
+    });
+  }
+
+  // Systems exist but everything routes through founder
+  const hasDocs = docStateIncludes(data.doc_state, 'centralized') || docStateIncludes(data.doc_state, 'handbook') || docStateIncludes(data.doc_state, 'training manual');
+  if (hasDocs && founderRisk.score >= 60) {
+    contradictions.push({
+      title: 'Systems exist, founder still central',
+      finding: 'Documentation is in place, but founder risk remains high. The systems may be outdated, not enforced, or the founder hasn\'t stepped back from the processes that are documented.',
+    });
+  }
+
+  // Good work-life but burnout risk critical
+  const positiveEnergy = data.energy_runway?.includes('6 months') || data.energy_runway?.includes('12+ months') || data.energy_runway?.includes('indefinitely');
+  if (positiveEnergy && burnoutRisk.score >= 50) {
+    contradictions.push({
+      title: 'Feels fine, data says otherwise',
+      finding: 'The founder reports sustainable energy, but multiple burnout risk indicators are elevated. This can signal normalization — when burnout becomes the baseline, it stops feeling like burnout.',
+    });
+  }
+
+  // Claims profitable but pricing is critical
+  const claimsProfitable = data.profitability_gut_check?.includes('Comfortably profitable') || data.profitability_gut_check?.includes('Breaking even');
+  if (claimsProfitable && pricingHealth.level === 'CRITICAL') {
+    contradictions.push({
+      title: 'Profitability perception vs. pricing health',
+      finding: 'The founder reports profitability, but pricing health indicators are critical. Revenue may be masking thin margins, stale pricing, or untracked costs that erode real profit.',
+    });
+  }
+
+  return contradictions;
+}
+
+// ------------------------------------------------------------------
 // EXECUTIVE SUMMARY
 // ------------------------------------------------------------------
 
@@ -1346,42 +1553,273 @@ function generateExecutiveSummary(
   bottleneckStage: string,
   frictionCost: FrictionCostEstimate,
   extractionReadiness: ExtractionReadiness,
-  delegationMatrix: DelegationItem[]
+  delegationMatrix: DelegationItem[],
+  constraintProfile?: ReportData['constraintProfile'],
+  topPressurePoint?: string
 ): string {
   const businessName = data.businessName || 'Your business';
-  const constraintLabels: Record<ConstraintType, string> = {
-    'COGNITIVE-BOUND': 'cognitive overload',
-    'POLICY-BOUND': 'missing structure',
-    'TIME-BOUND': 'capacity ceiling',
-    'UNKNOWN': 'operational',
-  };
-  const constraintLabel = constraintLabels[constraint];
-
+  const track = determineTrack(data.business_type);
   const nowCount = delegationMatrix.filter(d => d.readiness === 'NOW').length;
   const hasFrictionCost = frictionCost.totalRange.high > 0;
+  const shape = constraintProfile?.shape || 'DOMINANT';
 
-  const extractionLabels: Record<ExtractionReadiness['level'], string> = {
-    'READY': 'well-positioned',
-    'CLOSE': 'getting close to being ready',
-    'EARLY': 'in the early stages of readiness',
-    'ENTANGLED': 'deeply entangled with the founder',
+  // --- Sentence 1: Intro framing (varies by constraint profile shape) ---
+  const introVariants: Record<string, string[]> = {
+    DOMINANT: [
+      `${businessName} has a clear, singular constraint driving the majority of its operational friction.`,
+      `The diagnostic reveals one dominant pattern running through ${businessName}'s operations.`,
+      `${businessName}'s operational bottleneck is concentrated — one constraint is doing most of the damage.`,
+      `One constraint explains most of what's slowing ${businessName} down.`,
+      `The data points to a single dominant constraint at ${businessName}.`,
+    ],
+    COMPOUND: [
+      `${businessName} is dealing with two overlapping constraints that reinforce each other.`,
+      `The diagnostic reveals compound pressure at ${businessName} — two constraints are interacting.`,
+      `${businessName}'s bottleneck is not a single issue — two constraints are compounding the friction.`,
+      `Two closely scored constraints are creating a feedback loop at ${businessName}.`,
+      `${businessName} faces a compound constraint — addressing one without the other will produce limited results.`,
+    ],
+    DISTRIBUTED: [
+      `${businessName}'s operational friction is spread across multiple dimensions — there is no single fix.`,
+      `The diagnostic shows distributed pressure at ${businessName} — cognitive, structural, and capacity constraints are all contributing.`,
+      `${businessName} doesn't have one bottleneck — it has several, evenly matched. This requires a sequenced approach.`,
+      `Friction at ${businessName} is systemic rather than concentrated. The fix is a system, not a single intervention.`,
+      `${businessName}'s constraints are distributed — no single dimension dominates, which means progress requires working on multiple fronts.`,
+    ],
+  };
+  const introOptions = introVariants[shape] || introVariants['DOMINANT'];
+  const sentence1 = introOptions[Math.abs(businessName.length) % introOptions.length];
+
+  // --- Sentence 2: Primary finding (what the data shows about the bottleneck) ---
+  const findingVariants: Record<ConstraintType, string[]> = {
+    'COGNITIVE-BOUND': [
+      `The primary bottleneck is cognitive: the founder's decision-making capacity is the rate limiter. Work stalls at ${bottleneckStage} because the team can't move forward without approval.`,
+      `Decision load is the core issue — too many choices route through one person, and ${bottleneckStage} is where the queue forms.`,
+      `The data shows cognitive overload as the primary constraint. The ${bottleneckStage} stage backs up because the founder is the only decision-maker.`,
+      `At ${bottleneckStage}, work waits for the founder's judgment. The constraint is not time or systems — it's that decisions aren't externalized.`,
+      `The founder's cognitive bandwidth is the ceiling. ${bottleneckStage} is the stage where this becomes visible — work either waits or gets escalated.`,
+    ],
+    'POLICY-BOUND': [
+      `The primary bottleneck is structural: missing processes and undocumented standards cause work to loop back at ${bottleneckStage}.`,
+      `Operational friction is driven by absent systems. The ${bottleneckStage} stage lacks documented standards, so work defaults to the founder or gets redone.`,
+      `The data shows a policy-bound constraint — the team doesn't lack skill, they lack clarity. ${bottleneckStage} is where this gap is most visible.`,
+      `At ${bottleneckStage}, work breaks down because standards aren't written. The constraint is structural, not personal.`,
+      `Missing SOPs and unclear handoff criteria cause predictable friction at ${bottleneckStage}. This is a systems problem with a systems fix.`,
+    ],
+    'TIME-BOUND': [
+      `The primary bottleneck is capacity: the founder is too embedded in delivery for the business to grow. ${bottleneckStage} depends on the founder being present.`,
+      `The founder's time is the constraint — there aren't enough hours to sustain current involvement at ${bottleneckStage} and grow the business.`,
+      `Founder dependency is the core issue. The ${bottleneckStage} stage requires the founder's direct involvement, capping what the business can handle.`,
+      `The data shows a time-bound constraint. The founder is the bottleneck at ${bottleneckStage} not because others can't do the work, but because extraction hasn't happened yet.`,
+      `At ${bottleneckStage}, capacity is limited by the founder's availability. The business has hit the ceiling of what one person can sustain.`,
+    ],
+    'UNKNOWN': [
+      `The diagnostic identified friction at ${bottleneckStage}, though the primary constraint type needs further investigation.`,
+      `Operational friction is present at ${bottleneckStage}. Additional data would sharpen the constraint diagnosis.`,
+      `The ${bottleneckStage} stage shows signs of stress, but more data is needed to pinpoint the root constraint.`,
+      `Work is slowing at ${bottleneckStage}. The underlying constraint requires deeper analysis to categorize precisely.`,
+      `Friction at ${bottleneckStage} is evident, but the constraint pattern doesn't fit a single category cleanly yet.`,
+    ],
+  };
+  const findingOptions = findingVariants[constraint];
+  const sentence2 = findingOptions[Math.abs(bottleneckStage.length) % findingOptions.length];
+
+  // --- Sentence 3: Cost/impact ---
+  let sentence3: string;
+  if (hasFrictionCost) {
+    const costRange = formatDollarRange(frictionCost.totalRange.low, frictionCost.totalRange.high);
+    const costTemplates = [
+      `This friction costs an estimated ${costRange} per year in lost productivity, rework, and operational drag.`,
+      `The annual cost of this constraint is estimated at ${costRange} — a combination of time waste, revenue leakage, and tool overhead.`,
+      `Operationally, this pattern drains roughly ${costRange} per year from the business.`,
+    ];
+    sentence3 = costTemplates[Math.abs(constraint.length) % costTemplates.length];
+  } else {
+    const qualitativeTemplates = [
+      'While the friction cost couldn\'t be precisely quantified, the operational drag is visible in stalled work, repeated handoffs, and founder time consumption.',
+      'The financial impact isn\'t fully quantifiable with current data, but the operational cost shows up as slower delivery, founder fatigue, and limited growth capacity.',
+      'Even without precise dollar figures, the constraint is costing the business in throughput, team autonomy, and the founder\'s ability to focus on strategic work.',
+    ];
+    sentence3 = qualitativeTemplates[Math.abs(track.length) % qualitativeTemplates.length];
+  }
+
+  // --- Sentence 4: Readiness statement ---
+  const readinessVariants: Record<ExtractionReadiness['level'], string[]> = {
+    'READY': [
+      `The business is well-positioned for founder extraction${nowCount > 0 ? `, with ${nowCount} responsibilit${nowCount === 1 ? 'y' : 'ies'} ready for immediate delegation` : ''}. The team, documentation, and willingness are largely in place.`,
+      `Extraction readiness is high${nowCount > 0 ? ` — ${nowCount} item${nowCount === 1 ? '' : 's'} can be delegated immediately` : ''}. The foundation exists to start separating the founder from operations.`,
+    ],
+    'CLOSE': [
+      `The business is getting close to founder extraction readiness${nowCount > 0 ? `, with ${nowCount} responsibilit${nowCount === 1 ? 'y' : 'ies'} already delegable` : ''}. A few targeted investments in systems or training will unlock the next level.`,
+      `Extraction readiness is close${nowCount > 0 ? ` — ${nowCount} delegation opportunit${nowCount === 1 ? 'y exists' : 'ies exist'} right now` : ''}, with a clear path to full readiness within 60-90 days.`,
+    ],
+    'EARLY': [
+      `Extraction readiness is early-stage — systems and documentation need to be built before meaningful delegation can begin.${nowCount > 0 ? ` That said, ${nowCount} responsibilit${nowCount === 1 ? 'y' : 'ies'} can move now.` : ''}`,
+      `The business needs foundational work before the founder can step back.${nowCount > 0 ? ` ${nowCount} item${nowCount === 1 ? '' : 's'} can be delegated in parallel while systems are built.` : ' The roadmap starts with documentation and standards.'}`,
+    ],
+    'ENTANGLED': [
+      `The founder is deeply entangled with operations — extraction requires a deliberate, phased approach.${nowCount > 0 ? ` Even so, ${nowCount} responsibilit${nowCount === 1 ? 'y' : 'ies'} can begin transitioning now.` : ' Every small separation compounds over time.'}`,
+      `Founder separation is the long game here. The business currently can't function without the founder's daily involvement.${nowCount > 0 ? ` Starting with ${nowCount} immediate delegation opportunit${nowCount === 1 ? 'y' : 'ies'} creates momentum.` : ' The roadmap prioritizes the highest-leverage extraction points.'}`,
+    ],
+  };
+  const readinessOptions = readinessVariants[extractionReadiness.level];
+  const sentence4 = readinessOptions[Math.abs(nowCount) % readinessOptions.length];
+
+  return `${sentence1} ${sentence2} ${sentence3} ${sentence4}`;
+}
+
+// ------------------------------------------------------------------
+// SUCCESS TRAP NARRATIVE
+// Cross-references track x constraint x bottleneck stage for a
+// 2-3 sentence narrative instead of a single template.
+// ------------------------------------------------------------------
+
+function generateSuccessTrap(
+  data: IntakeResponse,
+  track: 'A' | 'B' | 'C',
+  constraint: ConstraintType,
+  bottleneckStage: string
+): string {
+  const name = data.businessName || 'This business';
+  const frustration = data.biggest_frustration;
+
+  // Build the narrative from track x constraint cross-reference
+  const trackConstraintNarratives: Record<string, Record<ConstraintType, string>> = {
+    A: {
+      'COGNITIVE-BOUND': `${name} was built on consistent, reliable delivery — the kind clients trust and refer. But that reliability was built on the founder making every call. Now the volume of decisions has outgrown one person's bandwidth, and ${bottleneckStage} is where it shows. The same quality instinct that built the business is now the bottleneck slowing it down.`,
+      'POLICY-BOUND': `${name} scaled on execution speed and delivery consistency. But the processes that got it here were never written down — they lived in the founder's habits. At ${bottleneckStage}, the absence of documented standards means work either loops back or waits. The business outgrew its informal systems without building formal ones.`,
+      'TIME-BOUND': `${name} was built on excellent, consistent delivery. Clients trust the quality. But that quality is locked in the founder, and ${bottleneckStage} depends on their direct involvement. Growth now requires the founder to be present for more hours than exist. The thing that made the business successful is the same thing capping it.`,
+      'UNKNOWN': `${name} has built a reputation on reliable delivery, but operational friction at ${bottleneckStage} is limiting what comes next. The constraint needs further investigation, but the pattern is clear: what got the business here won't get it further without structural changes.`,
+    },
+    B: {
+      'COGNITIVE-BOUND': `${name} grew because the founder cared about quality more than anyone else. Over time, the team learned the safe default: "When in doubt, ask the founder." That instinct created an invisible decision queue at ${bottleneckStage} — everything routes through one person, whether it needs to or not. The founder's judgment became the business's most oversubscribed resource.`,
+      'POLICY-BOUND': `${name} thrived on the founder's ability to navigate complex decisions. But that expertise was never codified into systems. At ${bottleneckStage}, the team lacks documented criteria to move forward independently. The founder's knowledge is the business's greatest asset and its biggest single point of failure.`,
+      'TIME-BOUND': `${name} grew because the founder was willing to be deeply involved in every decision. That involvement built quality and trust, but it also made ${bottleneckStage} founder-dependent. The business has outgrown the founder's available hours. Hiring more people doesn't help if they all need the same person to approve their work.`,
+      'UNKNOWN': `${name} was built on the founder's expertise and judgment. That strength created the business, but it may also be constraining it — particularly at ${bottleneckStage}. The exact constraint type needs more data, but the founder-dependency pattern is visible.`,
+    },
+    C: {
+      'COGNITIVE-BOUND': `The founder IS ${name}. Their expertise, relationships, and reputation are the product. But the cognitive load of running operations AND being the product has become unsustainable. At ${bottleneckStage}, the founder's decision bandwidth is the rate limiter — not because they're slow, but because they're doing two jobs at once.`,
+      'POLICY-BOUND': `The founder IS ${name} — and that's not a flaw, it's the business model. But without documented systems, every operational task at ${bottleneckStage} defaults back to the founder. The founder's time gets consumed by process work instead of the high-value expertise clients actually pay for.`,
+      'TIME-BOUND': `The founder IS ${name}. Their expertise, reputation, and client relationships are the business. That's a structural reality, not a problem to fix. The real question is whether ${bottleneckStage} can be supported without the founder's direct involvement — so they can focus on what only they can do, without burning out.`,
+      'UNKNOWN': `The founder IS ${name}, and that creates both the business's greatest strength and its most significant constraint. Friction at ${bottleneckStage} is visible, but untangling what to keep founder-owned vs. what to extract requires a closer look.`,
+    },
   };
 
-  let summary = `${businessName} is a ${trackLabel.toLowerCase()} service business facing a ${constraintLabel} constraint. The primary bottleneck sits at the ${bottleneckStage} stage, where work either stalls or defaults back to the founder.`;
+  let narrative = trackConstraintNarratives[track]?.[constraint] || trackConstraintNarratives['B']['UNKNOWN'];
 
-  if (hasFrictionCost) {
-    summary += ` This is costing roughly ${formatDollarRange(frictionCost.totalRange.low, frictionCost.totalRange.high)} per year in operational friction.`;
+  // Incorporate the founder's own words when available
+  if (frustration) {
+    // Keep it brief — reference their frustration to make the narrative personal
+    const frustrationLower = frustration.toLowerCase();
+    if (frustrationLower.includes('time') || frustrationLower.includes('hours') || frustrationLower.includes('busy')) {
+      narrative += ` The founder put it plainly: the time pressure is felt every day.`;
+    } else if (frustrationLower.includes('team') || frustrationLower.includes('staff') || frustrationLower.includes('people')) {
+      narrative += ` The founder's own frustration points to the team dynamic — which tracks with what the data shows.`;
+    } else if (frustrationLower.includes('growth') || frustrationLower.includes('stuck') || frustrationLower.includes('plateau')) {
+      narrative += ` The founder already feels it — the business has hit a ceiling, and they know it.`;
+    } else if (frustrationLower.includes('everything') || frustrationLower.includes('all') || frustrationLower.includes('wearing')) {
+      narrative += ` The founder's frustration confirms it: wearing every hat is unsustainable.`;
+    } else {
+      narrative += ` In the founder's own words, the frustration is real and daily.`;
+    }
   }
 
-  summary += ` The business is ${extractionLabels[extractionReadiness.level]} for founder separation`;
+  return narrative;
+}
 
-  if (nowCount > 0) {
-    summary += `, with ${nowCount} responsibilit${nowCount === 1 ? 'y' : 'ies'} ready for immediate delegation.`;
-  } else {
-    summary += `, though systems need to be built before delegation can begin.`;
+// ------------------------------------------------------------------
+// KEYWORD EXTRACTION FROM FREE-TEXT
+// Scans all free-text responses and boosts relevant constraint scores.
+// Returns score adjustments for each dimension.
+// ------------------------------------------------------------------
+
+type KeywordBoosts = {
+  cognitive: number;   // boost to cognitive constraint score
+  structural: number;  // boost to structural constraint score
+  capacity: number;    // boost to capacity constraint score
+  themes: string[];    // detected themes for narrative selection
+};
+
+function extractKeywordBoosts(data: IntakeResponse): KeywordBoosts {
+  // Gather all free-text fields
+  const texts = [
+    data.biggest_frustration || '',
+    data.vent || '',
+    data.strategic_work_id || '',
+    data.last_hour_wished_delegated || '',
+    data.magic_wand_fix || '',
+    data.what_keeps_you_up || '',
+  ].join(' ').toLowerCase();
+
+  if (!texts.trim()) return { cognitive: 0, structural: 0, capacity: 0, themes: [] };
+
+  const boosts: KeywordBoosts = { cognitive: 0, structural: 0, capacity: 0, themes: [] };
+
+  // Cognitive keywords — decisions, approvals, mental load
+  const cognitivePatterns = [
+    /\b(decision|decide|approve|approval|sign.?off|judgment|brain|think|mental|overwhelm|head\b)/gi,
+    /\b(every.?thing.*comes.*to.*me|always.*asking|constant.*question)/gi,
+    /\b(can'?t.*think|can'?t.*focus|too.*many.*choice|analysis.*paralysis)/gi,
+  ];
+
+  // Structural keywords — processes, systems, documentation
+  const structuralPatterns = [
+    /\b(process|system|sop|documentation|procedure|checklist|template|workflow|automat)/gi,
+    /\b(no.*system|no.*process|in.*my.*head|nothing.*written|no.*standard)/gi,
+    /\b(reinvent.*wheel|start.*from.*scratch|every.*time.*different|no.*consistency)/gi,
+  ];
+
+  // Capacity keywords — time, burnout, hours, delegation
+  const capacityPatterns = [
+    /\b(time|hours|burnout|exhaust|tired|overwhelm|capacity|bandwidth|too.*much)/gi,
+    /\b(can'?t.*keep.*up|falling.*behind|drowning|stretched.*thin|running.*on.*fumes)/gi,
+    /\b(delegat|hire|team.*can'?t|nobody.*else|only.*one.*who|always.*me)/gi,
+    /\b(pricing|underpric|cheap|afford|money|revenue|profit|rate|charg)/gi,
+  ];
+
+  const themes: Set<string> = new Set();
+
+  // Count matches and boost accordingly
+  for (const pattern of cognitivePatterns) {
+    const matches = texts.match(pattern);
+    if (matches && matches.length > 0) {
+      boosts.cognitive += Math.min(matches.length * 3, 10);
+      themes.add('decisions');
+    }
   }
 
-  return summary;
+  for (const pattern of structuralPatterns) {
+    const matches = texts.match(pattern);
+    if (matches && matches.length > 0) {
+      boosts.structural += Math.min(matches.length * 3, 10);
+      themes.add('systems');
+    }
+  }
+
+  for (const pattern of capacityPatterns) {
+    const matches = texts.match(pattern);
+    if (matches && matches.length > 0) {
+      boosts.capacity += Math.min(matches.length * 3, 10);
+      if (texts.match(/\b(pricing|underpric|cheap|afford|money|revenue|profit|rate|charg)/gi)) {
+        themes.add('pricing');
+      }
+      if (texts.match(/\b(burnout|exhaust|tired|overwhelm|running.*on.*fumes)/gi)) {
+        themes.add('burnout');
+      }
+      if (texts.match(/\b(delegat|hire|team|nobody.*else|only.*one)/gi)) {
+        themes.add('delegation');
+      }
+      themes.add('capacity');
+    }
+  }
+
+  // Cap total boost per dimension at 10
+  boosts.cognitive = Math.min(boosts.cognitive, 10);
+  boosts.structural = Math.min(boosts.structural, 10);
+  boosts.capacity = Math.min(boosts.capacity, 10);
+  boosts.themes = Array.from(themes);
+
+  return boosts;
 }
 
 // ------------------------------------------------------------------
@@ -1398,52 +1836,110 @@ export function runDiagnostic(data: IntakeResponse): DiagnosticResult {
   const contextData = calculateContextSwitching(data);
   const heatmap = generateHeatmap(data);
 
-  // Calculate composite scores (NEW — automated behind the scenes)
+  // Calculate composite scores
   const founderRisk = calculateFounderRisk(data, track);
   const systemHealth = calculateSystemHealth(data);
   const delegationReadiness = calculateDelegationReadiness(data, track);
   const burnoutRisk = calculateBurnoutRisk(data, track);
   const pricingHealth = calculatePricingHealth(data);
 
-  // Determine Primary Constraint (improved logic)
-  let constraint: ConstraintType = 'UNKNOWN';
-  let solutionCategory = 'General Optimization';
+  // ------------------------------------------------------------------
+  // KEYWORD EXTRACTION FROM FREE-TEXT
+  // Boost constraint scores based on language patterns in free-text
+  // ------------------------------------------------------------------
+  const keywordBoosts = extractKeywordBoosts(data);
 
-  if (decisionData.level === 'HIGH' && (contextData.level === 'HIGH' || decisionData.score >= 60)) {
-    constraint = 'COGNITIVE-BOUND';
-    solutionCategory = 'Decision frameworks + documented heuristics';
-  } else if (flowData.level === 'HIGH' || systemHealth.level === 'BROKEN') {
-    constraint = 'POLICY-BOUND';
-    solutionCategory = 'SOPs + delegation criteria + process documentation';
-  } else if (founderRisk.level === 'CRITICAL' || founderRisk.level === 'HIGH') {
-    constraint = 'TIME-BOUND';
-    solutionCategory = 'Founder extraction + capacity building';
+  // ------------------------------------------------------------------
+  // MULTI-CONSTRAINT SCORING
+  // Compute three constraint dimension scores (0-100), determine
+  // primary constraint from highest, detect compound situations.
+  // Keyword boosts from free-text are applied here.
+  // ------------------------------------------------------------------
+  const cognitiveScore = Math.min(100, (decisionData.score + contextData.score) / 2 + keywordBoosts.cognitive);
+  const structuralScore = Math.min(100, (flowData.score + (100 - systemHealth.score)) / 2 + keywordBoosts.structural);
+  const capacityScore = Math.min(100, (founderRisk.score + burnoutRisk.score) / 2 + keywordBoosts.capacity);
+
+  // Sort dimensions to find primary and secondary
+  const dimensions: Array<{ key: 'cognitive' | 'structural' | 'capacity'; score: number; constraint: ConstraintType }> = [
+    { key: 'cognitive', score: cognitiveScore, constraint: 'COGNITIVE-BOUND' },
+    { key: 'structural', score: structuralScore, constraint: 'POLICY-BOUND' },
+    { key: 'capacity', score: capacityScore, constraint: 'TIME-BOUND' },
+  ];
+  dimensions.sort((a, b) => b.score - a.score);
+
+  const primary = dimensions[0];
+  const secondary = dimensions[1];
+  const tertiary = dimensions[2];
+
+  // Determine shape
+  const gapTopTwo = primary.score - secondary.score;
+  const gapTopBottom = primary.score - tertiary.score;
+  let shape: 'DOMINANT' | 'COMPOUND' | 'DISTRIBUTED';
+  if (gapTopTwo >= 20) {
+    shape = 'DOMINANT';
+  } else if (gapTopBottom < 20) {
+    shape = 'DISTRIBUTED';
   } else {
-    // Fall back to what the preview engine determined
-    constraint = 'TIME-BOUND';
-    solutionCategory = 'Capacity + structure';
+    shape = 'COMPOUND';
   }
+
+  const constraint: ConstraintType = primary.score > 0 ? primary.constraint : 'UNKNOWN';
+  const secondaryConstraint: ConstraintType | undefined = shape === 'COMPOUND' ? secondary.constraint : undefined;
+
+  // Solution category reflects compound situations
+  let solutionCategory: string;
+  if (shape === 'COMPOUND') {
+    const solutionParts: Record<ConstraintType, string> = {
+      'COGNITIVE-BOUND': 'decision frameworks',
+      'POLICY-BOUND': 'SOPs + process documentation',
+      'TIME-BOUND': 'founder extraction',
+      'UNKNOWN': 'general optimization',
+    };
+    solutionCategory = `${solutionParts[constraint]} + ${solutionParts[secondaryConstraint || 'UNKNOWN']}`;
+  } else if (shape === 'DISTRIBUTED') {
+    solutionCategory = 'Sequenced approach: decision frameworks, then SOPs, then extraction';
+  } else {
+    const solutionMap: Record<ConstraintType, string> = {
+      'COGNITIVE-BOUND': 'Decision frameworks + documented heuristics',
+      'POLICY-BOUND': 'SOPs + delegation criteria + process documentation',
+      'TIME-BOUND': 'Founder extraction + capacity building',
+      'UNKNOWN': 'General Optimization',
+    };
+    solutionCategory = solutionMap[constraint];
+  }
+
+  const constraintProfile: ReportData['constraintProfile'] = {
+    cognitive: Math.round(cognitiveScore),
+    structural: Math.round(structuralScore),
+    capacity: Math.round(capacityScore),
+    shape,
+    secondaryConstraint,
+  };
 
   // Find bottleneck stage
   const redStage = heatmap.find(s => s.status === 'RED');
   const yellowStage = heatmap.find(s => s.status === 'YELLOW');
   const bottleneckStage = redStage ? redStage.name : yellowStage ? yellowStage.name : 'None identified';
 
-  // Generate pressure points (dynamic, data-driven)
-  const pressurePoints = generatePressurePoints(data, heatmap, founderRisk, decisionData, pricingHealth, track);
+  // Generate pressure points (scored ranking — top 5)
+  const pressurePoints = generatePressurePoints(data, heatmap, founderRisk, decisionData, pricingHealth, track, burnoutRisk, delegationReadiness);
 
-  // NEW: Revenue context + friction cost
+  // Cross-signal analysis
+  const compoundSignals = detectCompoundSignals(data, heatmap, founderRisk, delegationReadiness, pricingHealth, burnoutRisk, systemHealth, decisionData);
+  const contradictions = detectContradictions(data, founderRisk, delegationReadiness, burnoutRisk, pricingHealth);
+
+  // Revenue context + friction cost
   const revenueContext = deriveRevenueContext(data);
   const frictionCost = calculateFrictionCost(data, revenueContext);
 
-  // NEW: Extraction readiness + delegation matrix
+  // Extraction readiness + delegation matrix
   const extractionReadiness = calculateExtractionReadiness(data, delegationReadiness, systemHealth, founderRisk);
   const delegationMatrix = generateDelegationMatrix(data);
 
-  // NEW: Enriched pressure points (with cost + opportunity)
+  // Enriched pressure points (with cost + opportunity)
   const enrichedPressurePoints = enrichPressurePoints(pressurePoints, frictionCost, revenueContext);
 
-  // NEW: Enriched phases (roadmap with actions + timeframes)
+  // Enriched phases (roadmap with actions + timeframes)
   const enrichedPhases = generateEnrichedPhases(data, heatmap, constraint, revenueContext, bottleneckStage);
 
   // Legacy phases (kept for backward compatibility with existing views)
@@ -1483,12 +1979,11 @@ export function runDiagnostic(data: IntakeResponse): DiagnosticResult {
     'UNKNOWN': 'We need more data to identify your primary constraint precisely.',
   };
 
-  // Success trap narrative
-  const successTraps: Record<string, string> = {
-    'A': `${data.businessName || 'This business'} was built on excellent, consistent delivery. Clients trust the quality. But that quality is currently locked in the founder — which means growth requires the founder to be present. The thing that made the business successful is the same thing keeping it stuck.`,
-    'B': `${data.businessName || 'This business'} grew because the founder cared about quality more than anyone else. Over time, the team learned: "When in doubt, ask the founder." That instinct to protect quality created an invisible bottleneck — everything routes through one person, whether it needs to or not.`,
-    'C': `The founder IS ${data.businessName || 'this business'}. Their expertise, reputation, and relationships. That's not a flaw — it's a structural reality. The question isn't whether to change that, it's whether the business can support the founder at the scale they want without burning them out.`,
-  };
+  // Success trap narrative (expanded, cross-referenced)
+  const successTrapNarrative = generateSuccessTrap(data, track, constraint, bottleneckStage);
+
+  // Top pressure point title for executive summary context
+  const topPressurePointTitle = pressurePoints.length > 0 ? pressurePoints[0].title : undefined;
 
   const report: ReportData = {
     businessName: data.businessName || 'Your Business',
@@ -1514,7 +2009,7 @@ export function runDiagnostic(data: IntakeResponse): DiagnosticResult {
 
     pressurePoints,
 
-    successTrapNarrative: successTraps[track],
+    successTrapNarrative,
     constraintDescription: constraintDescriptions[constraint],
     constraintSolutionCategory: solutionCategory,
 
@@ -1533,7 +2028,12 @@ export function runDiagnostic(data: IntakeResponse): DiagnosticResult {
     enrichedPhases,
     enrichedPressurePoints,
     revenueContext,
-    executiveSummary: generateExecutiveSummary(data, trackLabel, constraint, bottleneckStage, frictionCost, extractionReadiness, delegationMatrix),
+    executiveSummary: generateExecutiveSummary(data, trackLabel, constraint, bottleneckStage, frictionCost, extractionReadiness, delegationMatrix, constraintProfile, topPressurePointTitle),
+
+    // Multi-constraint profile + cross-signal analysis
+    constraintProfile,
+    compoundSignals: compoundSignals.length > 0 ? compoundSignals : undefined,
+    contradictions: contradictions.length > 0 ? contradictions : undefined,
   };
 
   return { report };

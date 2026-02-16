@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   ChevronDown, ChevronUp, User, Activity, AlertTriangle, Shield,
   Wrench, ArrowRight, MessageSquare, Send, Search, DollarSign,
-  CheckCircle, Filter, RefreshCw, X
+  CheckCircle, Filter, RefreshCw, X, Globe, Briefcase, Edit3,
+  Save, RotateCcw, Eye, EyeOff, FileText
 } from 'lucide-react';
-import { fetchAllClients, fetchAllPayments, saveAdminNote, saveAdminTaggedNote } from '../utils/database';
+import {
+  fetchAllClients, fetchAllPayments, saveAdminNote, saveAdminTaggedNote,
+  saveReportOverride, deleteReportOverride, fetchReportOverrides,
+  ReportOverride
+} from '../utils/database';
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
 
 // ─── PIN Gate ───────────────────────────────────────────────────────
@@ -133,6 +138,31 @@ function formatCents(cents: number) {
   return dollars % 1 === 0 ? `$${dollars.toFixed(0)}` : `$${dollars.toFixed(2)}`;
 }
 
+// Extract business info from intake answers
+function getBusinessInfo(answers: any) {
+  return {
+    businessName: answers?.businessName || answers?.business_name || null,
+    website: answers?.website || null,
+    industryType: answers?.specificType || answers?.business_type || null,
+    firstName: answers?.firstName || answers?.first_name || null,
+    email: answers?.email || null,
+  };
+}
+
+// ─── Report Section Definitions ─────────────────────────────────────
+const REPORT_SECTIONS = [
+  { key: 'executive_summary', label: 'Executive Summary', getAutoContent: (r: any) => r?.executiveSummary || '' },
+  { key: 'primary_constraint', label: 'Primary Constraint', getAutoContent: (r: any) => r?.constraintDescription || '' },
+  { key: 'success_trap', label: 'Success Trap', getAutoContent: (r: any) => r?.successTrapNarrative || '' },
+  { key: 'pressure_point_0', label: 'Pressure Point 1', getAutoContent: (r: any) => r?.enrichedPressurePoints?.[0]?.finding || '' },
+  { key: 'pressure_point_1', label: 'Pressure Point 2', getAutoContent: (r: any) => r?.enrichedPressurePoints?.[1]?.finding || '' },
+  { key: 'pressure_point_2', label: 'Pressure Point 3', getAutoContent: (r: any) => r?.enrichedPressurePoints?.[2]?.finding || '' },
+  { key: 'phase_0', label: 'Roadmap Phase 1', getAutoContent: (r: any) => r?.enrichedPhases?.[0] ? `${r.enrichedPhases[0].name}: ${r.enrichedPhases[0].description}` : '' },
+  { key: 'phase_1', label: 'Roadmap Phase 2', getAutoContent: (r: any) => r?.enrichedPhases?.[1] ? `${r.enrichedPhases[1].name}: ${r.enrichedPhases[1].description}` : '' },
+  { key: 'phase_2', label: 'Roadmap Phase 3', getAutoContent: (r: any) => r?.enrichedPhases?.[2] ? `${r.enrichedPhases[2].name}: ${r.enrichedPhases[2].description}` : '' },
+  { key: 'additional_notes', label: 'Additional Notes', getAutoContent: () => '' },
+];
+
 // ─── Types ──────────────────────────────────────────────────────────
 type ClientData = {
   id: string;
@@ -160,6 +190,191 @@ type ClientData = {
   }>;
 };
 
+// ─── Report Editor Component ────────────────────────────────────────
+function ReportEditor({
+  clientId,
+  fullReport,
+  overrides: initialOverrides,
+  onOverridesChange,
+}: {
+  clientId: string;
+  fullReport: any;
+  overrides: ReportOverride[];
+  onOverridesChange: () => void;
+}) {
+  const [editingSection, setEditingSection] = useState<string | null>(null);
+  const [editTexts, setEditTexts] = useState<Record<string, string>>({});
+  const [saving, setSaving] = useState<string | null>(null);
+  const [overrides, setOverrides] = useState<ReportOverride[]>(initialOverrides);
+
+  // Sync with parent overrides
+  useEffect(() => { setOverrides(initialOverrides); }, [initialOverrides]);
+
+  const overrideMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    overrides.forEach(o => { map[o.section_key] = o.custom_content; });
+    return map;
+  }, [overrides]);
+
+  const handleStartEdit = (sectionKey: string, autoContent: string) => {
+    setEditingSection(sectionKey);
+    setEditTexts(prev => ({
+      ...prev,
+      [sectionKey]: overrideMap[sectionKey] || autoContent,
+    }));
+  };
+
+  const handleSave = async (sectionKey: string) => {
+    const text = editTexts[sectionKey]?.trim();
+    if (!text) return;
+    setSaving(sectionKey);
+    const success = await saveReportOverride(clientId, sectionKey, text);
+    if (success) {
+      setOverrides(prev => {
+        const existing = prev.find(o => o.section_key === sectionKey);
+        if (existing) {
+          return prev.map(o => o.section_key === sectionKey ? { ...o, custom_content: text } : o);
+        }
+        return [...prev, { section_key: sectionKey, custom_content: text }];
+      });
+      onOverridesChange();
+    }
+    setSaving(null);
+    setEditingSection(null);
+  };
+
+  const handleRevert = async (sectionKey: string) => {
+    setSaving(sectionKey);
+    const success = await deleteReportOverride(clientId, sectionKey);
+    if (success) {
+      setOverrides(prev => prev.filter(o => o.section_key !== sectionKey));
+      onOverridesChange();
+    }
+    setSaving(null);
+    setEditingSection(null);
+  };
+
+  const editableSections = REPORT_SECTIONS.filter(s => {
+    const auto = s.getAutoContent(fullReport);
+    // Show section if it has auto content OR is additional_notes OR already has an override
+    return auto || s.key === 'additional_notes' || overrideMap[s.key];
+  });
+
+  return (
+    <div>
+      <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
+        <Edit3 size={12} />
+        Report Editor
+        <span className="text-brand-mid/60 ml-1">
+          ({Object.keys(overrideMap).length} section{Object.keys(overrideMap).length !== 1 ? 's' : ''} customized)
+        </span>
+      </div>
+
+      <div className="space-y-3">
+        {editableSections.map(section => {
+          const autoContent = section.getAutoContent(fullReport);
+          const hasOverride = !!overrideMap[section.key];
+          const isEditing = editingSection === section.key;
+          const isSaving = saving === section.key;
+
+          return (
+            <div
+              key={section.key}
+              className={`rounded-xl border transition-all ${
+                hasOverride
+                  ? 'bg-purple-50/50 border-purple-200/50'
+                  : 'bg-white/60 border-brand-dark/5'
+              }`}
+            >
+              {/* Section header */}
+              <div className="flex items-center justify-between p-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-xs font-bold text-brand-dark/70">{section.label}</span>
+                  {hasOverride && (
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-600">
+                      Edited
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {!isEditing ? (
+                    <button
+                      onClick={() => handleStartEdit(section.key, autoContent)}
+                      className="p-1.5 rounded-lg hover:bg-brand-dark/5 text-brand-dark/30 hover:text-brand-dark/60 transition-colors"
+                      title="Edit this section"
+                    >
+                      <Edit3 size={12} />
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={() => handleSave(section.key)}
+                        disabled={isSaving}
+                        className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors disabled:opacity-40"
+                        title="Save"
+                      >
+                        <Save size={12} />
+                      </button>
+                      {hasOverride && (
+                        <button
+                          onClick={() => handleRevert(section.key)}
+                          disabled={isSaving}
+                          className="p-1.5 rounded-lg hover:bg-red-50 text-red-500 transition-colors disabled:opacity-40"
+                          title="Revert to auto-generated"
+                        >
+                          <RotateCcw size={12} />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setEditingSection(null)}
+                        className="p-1.5 rounded-lg hover:bg-brand-dark/5 text-brand-dark/30 transition-colors"
+                        title="Cancel"
+                      >
+                        <X size={12} />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Content area */}
+              {isEditing ? (
+                <div className="px-3 pb-3 space-y-2">
+                  {/* Auto-generated reference (collapsed by default) */}
+                  {autoContent && (
+                    <details className="group">
+                      <summary className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/20 cursor-pointer hover:text-brand-dark/40 transition-colors flex items-center gap-1">
+                        <Eye size={10} />
+                        Auto-generated reference
+                      </summary>
+                      <p className="mt-2 text-xs text-brand-dark/40 font-lora leading-relaxed bg-white/50 rounded-lg p-3 border border-brand-dark/5">
+                        {autoContent}
+                      </p>
+                    </details>
+                  )}
+                  <textarea
+                    value={editTexts[section.key] || ''}
+                    onChange={(e) => setEditTexts(prev => ({ ...prev, [section.key]: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 rounded-lg border border-brand-dark/10 bg-white text-sm focus:outline-none focus:border-brand-mid resize-y font-lora leading-relaxed"
+                    placeholder={section.key === 'additional_notes' ? 'Add custom notes to append to the report...' : 'Write your custom content for this section...'}
+                  />
+                </div>
+              ) : (
+                <div className="px-3 pb-3">
+                  <p className="text-xs text-brand-dark/50 font-lora leading-relaxed line-clamp-2">
+                    {hasOverride ? overrideMap[section.key] : (autoContent || 'No auto-generated content')}
+                  </p>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Admin View ────────────────────────────────────────────────
 export default function AdminView() {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('afterload_admin_unlocked') === 'true');
@@ -172,6 +387,8 @@ export default function AdminView() {
   const [searchQuery, setSearchQuery] = useState('');
   const [stageFilter, setStageFilter] = useState<ClientStage | 'all'>('all');
   const [refreshing, setRefreshing] = useState(false);
+  const [clientOverrides, setClientOverrides] = useState<Record<string, ReportOverride[]>>({});
+  const [activeTab, setActiveTab] = useState<Record<string, 'overview' | 'report-editor'>>({});
 
   const loadData = async () => {
     setLoading(true);
@@ -187,12 +404,25 @@ export default function AdminView() {
   const handleRefresh = async () => {
     setRefreshing(true);
     await loadData();
+    setClientOverrides({});
     setRefreshing(false);
   };
 
   useEffect(() => {
     if (unlocked) loadData();
   }, [unlocked]);
+
+  // Load overrides when expanding a client
+  const loadOverrides = useCallback(async (clientId: string) => {
+    const overrides = await fetchReportOverrides(clientId);
+    setClientOverrides(prev => ({ ...prev, [clientId]: overrides }));
+  }, []);
+
+  useEffect(() => {
+    if (expandedClient && !clientOverrides[expandedClient]) {
+      loadOverrides(expandedClient);
+    }
+  }, [expandedClient, clientOverrides, loadOverrides]);
 
   const handleSaveNote = async (clientId: string) => {
     const text = noteTexts[clientId]?.trim();
@@ -222,10 +452,18 @@ export default function AdminView() {
         // Search filter
         if (searchQuery) {
           const q = searchQuery.toLowerCase();
+          // Also search in intake answers for business info
+          const latestIntake = [...(c.intake_responses || [])]
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+          const answers = latestIntake?.answers || {};
+          const biz = getBusinessInfo(answers);
+
           const matchesSearch =
             c.email?.toLowerCase().includes(q) ||
             c.first_name?.toLowerCase().includes(q) ||
-            c.business_name?.toLowerCase().includes(q);
+            c.business_name?.toLowerCase().includes(q) ||
+            biz.website?.toLowerCase().includes(q) ||
+            biz.industryType?.toLowerCase().includes(q);
           if (!matchesSearch) return false;
         }
         // Stage filter
@@ -233,7 +471,6 @@ export default function AdminView() {
         return true;
       })
       .sort((a, b) => {
-        // Sort: most recent first, but also group by stage priority
         return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       });
   }, [clients, payments, searchQuery, stageFilter]);
@@ -316,7 +553,7 @@ export default function AdminView() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, email, or business..."
+              placeholder="Search by name, email, business, or industry..."
               className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/70 border border-brand-dark/10 text-sm focus:outline-none focus:border-brand-mid placeholder:text-brand-dark/30"
             />
             {searchQuery && (
@@ -373,6 +610,8 @@ export default function AdminView() {
               const clientPayments = payments.filter(p => p.email?.toLowerCase() === client.email?.toLowerCase() && p.status === 'succeeded');
               const stage = client.stage;
               const stageInfo = STAGE_CONFIG[stage];
+              const biz = getBusinessInfo(answers);
+              const currentTab = activeTab[client.id] || 'overview';
 
               // Run full diagnostic if we have clarity session data
               let fullReport = null;
@@ -405,13 +644,18 @@ export default function AdminView() {
                         </div>
                         <div className="min-w-0">
                           <div className="font-serif text-lg text-brand-dark truncate">
-                            {client.first_name || client.email.split('@')[0]}
-                            {client.business_name && (
-                              <span className="text-brand-dark/30 font-sans text-sm ml-2">- {client.business_name}</span>
+                            {client.first_name || biz.firstName || client.email.split('@')[0]}
+                            {(client.business_name || biz.businessName) && (
+                              <span className="text-brand-dark/30 font-sans text-sm ml-2">- {client.business_name || biz.businessName}</span>
                             )}
                           </div>
-                          <div className="flex items-center gap-3 mt-0.5">
+                          <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                             <span className="text-xs text-brand-dark/40 truncate">{client.email}</span>
+                            {biz.industryType && (
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-brand-dark/5 text-brand-dark/40 font-medium">
+                                {biz.industryType.split('(')[0]?.trim()}
+                              </span>
+                            )}
                             <span className="text-[9px] text-brand-dark/30">{formatDate(client.created_at)}</span>
                           </div>
                         </div>
@@ -426,6 +670,12 @@ export default function AdminView() {
                             </span>
                           </div>
                         )}
+                        {/* Override badge */}
+                        {clientOverrides[client.id]?.length > 0 && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-purple-100 text-purple-600">
+                            Edited
+                          </span>
+                        )}
                         {/* Stage badge */}
                         <span className={`text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap ${stageInfo.color}`}>
                           {stageInfo.label}
@@ -439,6 +689,63 @@ export default function AdminView() {
                   <div className={`grid transition-all duration-300 ease-out ${isExpanded ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}>
                     <div className="overflow-hidden">
                       <div className="bg-white/50 backdrop-blur-md rounded-b-2xl border-x border-b border-white/60 -mt-2 pt-6 pb-6 px-6 space-y-6">
+
+                        {/* ─── Business Info Card ─── */}
+                        <div className="bg-gradient-to-br from-brand-dark/[0.03] to-brand-dark/[0.01] rounded-xl p-5 border border-brand-dark/5">
+                          <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-4 flex items-center gap-2">
+                            <Briefcase size={12} />
+                            Business Information
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-3">
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-0.5">Name</div>
+                                <div className="text-sm text-brand-dark font-medium">
+                                  {client.first_name || biz.firstName || '—'}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-0.5">Email</div>
+                                <div className="text-sm text-brand-dark/70">{client.email}</div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-0.5">Business Name</div>
+                                <div className="text-sm text-brand-dark font-medium">
+                                  {client.business_name || biz.businessName || '—'}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-0.5">Website</div>
+                                <div className="text-sm text-brand-dark/70 flex items-center gap-1.5">
+                                  {biz.website ? (
+                                    <>
+                                      <Globe size={12} className="text-brand-mid/50 shrink-0" />
+                                      <a href={biz.website.startsWith('http') ? biz.website : `https://${biz.website}`}
+                                        target="_blank" rel="noopener noreferrer"
+                                        className="underline underline-offset-2 hover:text-brand-mid transition-colors truncate">
+                                        {biz.website}
+                                      </a>
+                                    </>
+                                  ) : '—'}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-0.5">Industry / Type</div>
+                                <div className="text-sm text-brand-dark font-medium">
+                                  {biz.industryType || '—'}
+                                </div>
+                              </div>
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-0.5">Business Model</div>
+                                <div className="text-sm text-brand-dark/70">
+                                  {answers.business_type?.split('(')[0]?.trim() || '—'}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
 
                         {/* Payment Timeline */}
                         {clientPayments.length > 0 && (
@@ -467,7 +774,6 @@ export default function AdminView() {
                         {/* Action buttons */}
                         {stage !== 'delivered' && (stage === 'balance_paid' || stage === 'clarity_done') && (
                           <div className="space-y-2">
-                            {/* Release Report — makes the in-app report visible to the client */}
                             {hasClaritySession && !client.admin_notes?.some((n: any) => n.note?.includes('[report-released]')) && (
                               <button
                                 onClick={() => handleReleaseReport(client.id)}
@@ -493,168 +799,218 @@ export default function AdminView() {
                           </div>
                         )}
 
-                        {/* Quick context */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                          {answers.business_type && (
-                            <div className="bg-white/60 rounded-xl p-3">
-                              <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Model</div>
-                              <div className="text-sm text-brand-dark font-medium">{answers.business_type?.split('(')[0]?.trim()}</div>
+                        {/* ─── Tab Switcher (Overview / Report Editor) ─── */}
+                        {hasClaritySession && fullReport && (
+                          <div className="flex items-center gap-1 bg-brand-dark/[0.03] rounded-xl p-1">
+                            <button
+                              onClick={() => setActiveTab(prev => ({ ...prev, [client.id]: 'overview' }))}
+                              className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                                currentTab === 'overview'
+                                  ? 'bg-white shadow-sm text-brand-dark'
+                                  : 'text-brand-dark/40 hover:text-brand-dark/60'
+                              }`}
+                            >
+                              <span className="flex items-center justify-center gap-1.5">
+                                <Activity size={12} />
+                                Overview
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => setActiveTab(prev => ({ ...prev, [client.id]: 'report-editor' }))}
+                              className={`flex-1 py-2 px-4 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
+                                currentTab === 'report-editor'
+                                  ? 'bg-white shadow-sm text-brand-dark'
+                                  : 'text-brand-dark/40 hover:text-brand-dark/60'
+                              }`}
+                            >
+                              <span className="flex items-center justify-center gap-1.5">
+                                <Edit3 size={12} />
+                                Report Editor
+                                {clientOverrides[client.id]?.length > 0 && (
+                                  <span className="w-2 h-2 rounded-full bg-purple-500" />
+                                )}
+                              </span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* ─── TAB: Overview ─── */}
+                        {currentTab === 'overview' && (
+                          <>
+                            {/* Quick context */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                              {answers.business_type && (
+                                <div className="bg-white/60 rounded-xl p-3">
+                                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Model</div>
+                                  <div className="text-sm text-brand-dark font-medium">{answers.business_type?.split('(')[0]?.trim()}</div>
+                                </div>
+                              )}
+                              {latestIntake?.track && (
+                                <div className="bg-white/60 rounded-xl p-3">
+                                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Track</div>
+                                  <div className="text-sm text-brand-dark font-medium">
+                                    {latestIntake.track === 'A' ? 'Time-Bound' : latestIntake.track === 'B' ? 'Decision-Heavy' : 'Founder-Led'}
+                                  </div>
+                                </div>
+                              )}
+                              {answers.team_size && (
+                                <div className="bg-white/60 rounded-xl p-3">
+                                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Team</div>
+                                  <div className="text-sm text-brand-dark font-medium">{answers.team_size}</div>
+                                </div>
+                              )}
+                              {answers.hourly_rate && (
+                                <div className="bg-white/60 rounded-xl p-3">
+                                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Rate</div>
+                                  <div className="text-sm text-brand-dark font-medium">{answers.hourly_rate}</div>
+                                </div>
+                              )}
                             </div>
-                          )}
-                          {latestIntake?.track && (
-                            <div className="bg-white/60 rounded-xl p-3">
-                              <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Track</div>
-                              <div className="text-sm text-brand-dark font-medium">
-                                {latestIntake.track === 'A' ? 'Time-Bound' : latestIntake.track === 'B' ? 'Decision-Heavy' : 'Founder-Led'}
+
+                            {/* Founder's voice */}
+                            {answers.biggest_frustration && (
+                              <div className="bg-brand-dark/[0.02] rounded-xl p-4 border border-brand-dark/5">
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">In Their Words</div>
+                                <p className="font-lora italic text-brand-dark/70 leading-relaxed">"{answers.biggest_frustration}"</p>
                               </div>
-                            </div>
-                          )}
-                          {answers.team_size && (
-                            <div className="bg-white/60 rounded-xl p-3">
-                              <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Team</div>
-                              <div className="text-sm text-brand-dark font-medium">{answers.team_size}</div>
-                            </div>
-                          )}
-                          {answers.hourly_rate && (
-                            <div className="bg-white/60 rounded-xl p-3">
-                              <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Rate</div>
-                              <div className="text-sm text-brand-dark font-medium">{answers.hourly_rate}</div>
-                            </div>
-                          )}
-                        </div>
+                            )}
 
-                        {/* Founder's voice */}
-                        {answers.biggest_frustration && (
-                          <div className="bg-brand-dark/[0.02] rounded-xl p-4 border border-brand-dark/5">
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">In Their Words</div>
-                            <p className="font-lora italic text-brand-dark/70 leading-relaxed">"{answers.biggest_frustration}"</p>
-                          </div>
-                        )}
-
-                        {/* Composite Scores */}
-                        {fullReport?.compositeScores && (
-                          <div>
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
-                              <Activity size={12} />
-                              Automated Scores
-                            </div>
-                            <div className="space-y-2">
-                              <ScoreBadge label="Founder Risk" level={fullReport.compositeScores.founderRisk.level} score={fullReport.compositeScores.founderRisk.score} />
-                              <ScoreBadge label="System Health" level={fullReport.compositeScores.systemHealth.level} score={fullReport.compositeScores.systemHealth.score} />
-                              <ScoreBadge label="Delegation Readiness" level={fullReport.compositeScores.delegationReadiness.level} score={fullReport.compositeScores.delegationReadiness.score} />
-                              <ScoreBadge label="Burnout Risk" level={fullReport.compositeScores.burnoutRisk.level} score={fullReport.compositeScores.burnoutRisk.score} />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Key Signals */}
-                        {fullReport?.compositeScores && (
-                          <div>
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
-                              <AlertTriangle size={12} />
-                              Key Signals
-                            </div>
-                            <div className="space-y-1.5">
-                              {[
-                                ...fullReport.compositeScores.founderRisk.signals,
-                                ...fullReport.compositeScores.burnoutRisk.signals,
-                                ...fullReport.compositeScores.systemHealth.signals,
-                                ...fullReport.compositeScores.delegationReadiness.signals,
-                              ]
-                                .filter((s: string, i: number, arr: string[]) => arr.indexOf(s) === i)
-                                .slice(0, 12)
-                                .map((signal: string, i: number) => (
-                                  <div key={i} className="text-sm text-brand-dark/60 flex items-start gap-2 py-1">
-                                    <span className="text-brand-dark/20 mt-0.5">&bull;</span>
-                                    {signal}
-                                  </div>
-                                ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Process Heatmap */}
-                        {fullReport?.heatmap && (
-                          <div>
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
-                              <Wrench size={12} />
-                              Process Map
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {fullReport.heatmap.map((stage: any) => (
-                                <div
-                                  key={stage.name}
-                                  className={`px-3 py-2 rounded-lg text-xs font-medium ${
-                                    stage.status === 'RED' ? 'bg-red-100 text-red-700' :
-                                    stage.status === 'YELLOW' ? 'bg-amber-100 text-amber-700' :
-                                    stage.status === 'GREEN' ? 'bg-green-100 text-green-700' :
-                                    'bg-gray-100 text-gray-400'
-                                  }`}
-                                  title={stage.signal}
-                                >
-                                  {stage.name}
-                                  <span className="ml-1 opacity-60">- {stage.signal}</span>
+                            {/* Composite Scores */}
+                            {fullReport?.compositeScores && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
+                                  <Activity size={12} />
+                                  Automated Scores
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Phases / Roadmap */}
-                        {fullReport?.phases && (
-                          <div>
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
-                              <ArrowRight size={12} />
-                              Automated Roadmap
-                            </div>
-                            <div className="space-y-2">
-                              {fullReport.phases.map((phase: any, i: number) => (
-                                <div key={i} className="bg-white/60 rounded-xl p-4">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="text-[10px] font-bold text-brand-dark/30">Phase {i + 1}</span>
-                                    <span className="font-medium text-sm text-brand-dark">{phase.name}</span>
-                                  </div>
-                                  <p className="text-xs text-brand-dark/50 mb-1">{phase.description}</p>
-                                  <p className="text-xs text-brand-dark/70 font-medium">{phase.actionItem}</p>
+                                <div className="space-y-2">
+                                  <ScoreBadge label="Founder Risk" level={fullReport.compositeScores.founderRisk.level} score={fullReport.compositeScores.founderRisk.score} />
+                                  <ScoreBadge label="System Health" level={fullReport.compositeScores.systemHealth.level} score={fullReport.compositeScores.systemHealth.score} />
+                                  <ScoreBadge label="Delegation Readiness" level={fullReport.compositeScores.delegationReadiness.level} score={fullReport.compositeScores.delegationReadiness.score} />
+                                  <ScoreBadge label="Burnout Risk" level={fullReport.compositeScores.burnoutRisk.level} score={fullReport.compositeScores.burnoutRisk.score} />
                                 </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
+                              </div>
+                            )}
 
-                        {/* Primary constraint */}
-                        {fullReport && (
-                          <div className="bg-brand-dark/[0.03] rounded-xl p-4 border border-brand-dark/5">
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2 flex items-center gap-2">
-                              <Shield size={12} />
-                              Constraint: {fullReport.primaryConstraint} - {fullReport.constraintSolutionCategory}
-                            </div>
-                            <p className="text-sm text-brand-dark/60 leading-relaxed mb-3">{fullReport.constraintDescription}</p>
-                            <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">Success Trap</div>
-                            <p className="text-sm text-brand-dark/50 font-lora leading-relaxed">{fullReport.successTrapNarrative}</p>
-                          </div>
-                        )}
-
-                        {/* Raw Answers */}
-                        <details className="group">
-                          <summary className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 cursor-pointer hover:text-brand-dark/50 transition-colors">
-                            Raw Answers ({Object.keys(answers).length} fields)
-                          </summary>
-                          <div className="mt-3 space-y-2">
-                            {Object.entries(answers)
-                              .filter(([_, v]) => v !== null && v !== undefined && v !== '')
-                              .map(([key, value]) => (
-                                <div key={key} className="flex items-start gap-3 py-1 border-b border-brand-dark/5 last:border-0">
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/30 w-40 shrink-0">{key}</span>
-                                  <span className="text-sm text-brand-dark/70">
-                                    {Array.isArray(value) ? value.join(', ') : String(value)}
-                                  </span>
+                            {/* Key Signals */}
+                            {fullReport?.compositeScores && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
+                                  <AlertTriangle size={12} />
+                                  Key Signals
                                 </div>
-                              ))}
-                          </div>
-                        </details>
+                                <div className="space-y-1.5">
+                                  {[
+                                    ...fullReport.compositeScores.founderRisk.signals,
+                                    ...fullReport.compositeScores.burnoutRisk.signals,
+                                    ...fullReport.compositeScores.systemHealth.signals,
+                                    ...fullReport.compositeScores.delegationReadiness.signals,
+                                  ]
+                                    .filter((s: string, i: number, arr: string[]) => arr.indexOf(s) === i)
+                                    .slice(0, 12)
+                                    .map((signal: string, i: number) => (
+                                      <div key={i} className="text-sm text-brand-dark/60 flex items-start gap-2 py-1">
+                                        <span className="text-brand-dark/20 mt-0.5">&bull;</span>
+                                        {signal}
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
 
-                        {/* Admin notes */}
+                            {/* Process Heatmap */}
+                            {fullReport?.heatmap && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
+                                  <Wrench size={12} />
+                                  Process Map
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                  {fullReport.heatmap.map((stage: any) => (
+                                    <div
+                                      key={stage.name}
+                                      className={`px-3 py-2 rounded-lg text-xs font-medium ${
+                                        stage.status === 'RED' ? 'bg-red-100 text-red-700' :
+                                        stage.status === 'YELLOW' ? 'bg-amber-100 text-amber-700' :
+                                        stage.status === 'GREEN' ? 'bg-green-100 text-green-700' :
+                                        'bg-gray-100 text-gray-400'
+                                      }`}
+                                      title={stage.signal}
+                                    >
+                                      {stage.name}
+                                      <span className="ml-1 opacity-60">- {stage.signal}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Phases / Roadmap */}
+                            {fullReport?.phases && (
+                              <div>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
+                                  <ArrowRight size={12} />
+                                  Automated Roadmap
+                                </div>
+                                <div className="space-y-2">
+                                  {fullReport.phases.map((phase: any, i: number) => (
+                                    <div key={i} className="bg-white/60 rounded-xl p-4">
+                                      <div className="flex items-center gap-2 mb-1">
+                                        <span className="text-[10px] font-bold text-brand-dark/30">Phase {i + 1}</span>
+                                        <span className="font-medium text-sm text-brand-dark">{phase.name}</span>
+                                      </div>
+                                      <p className="text-xs text-brand-dark/50 mb-1">{phase.description}</p>
+                                      <p className="text-xs text-brand-dark/70 font-medium">{phase.actionItem}</p>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Primary constraint */}
+                            {fullReport && (
+                              <div className="bg-brand-dark/[0.03] rounded-xl p-4 border border-brand-dark/5">
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2 flex items-center gap-2">
+                                  <Shield size={12} />
+                                  Constraint: {fullReport.primaryConstraint} - {fullReport.constraintSolutionCategory}
+                                </div>
+                                <p className="text-sm text-brand-dark/60 leading-relaxed mb-3">{fullReport.constraintDescription}</p>
+                                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">Success Trap</div>
+                                <p className="text-sm text-brand-dark/50 font-lora leading-relaxed">{fullReport.successTrapNarrative}</p>
+                              </div>
+                            )}
+
+                            {/* Raw Answers */}
+                            <details className="group">
+                              <summary className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 cursor-pointer hover:text-brand-dark/50 transition-colors">
+                                Raw Answers ({Object.keys(answers).length} fields)
+                              </summary>
+                              <div className="mt-3 space-y-2">
+                                {Object.entries(answers)
+                                  .filter(([_, v]) => v !== null && v !== undefined && v !== '')
+                                  .map(([key, value]) => (
+                                    <div key={key} className="flex items-start gap-3 py-1 border-b border-brand-dark/5 last:border-0">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/30 w-40 shrink-0">{key}</span>
+                                      <span className="text-sm text-brand-dark/70">
+                                        {Array.isArray(value) ? value.join(', ') : String(value)}
+                                      </span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </details>
+                          </>
+                        )}
+
+                        {/* ─── TAB: Report Editor ─── */}
+                        {currentTab === 'report-editor' && fullReport && (
+                          <ReportEditor
+                            clientId={client.id}
+                            fullReport={fullReport}
+                            overrides={clientOverrides[client.id] || []}
+                            onOverridesChange={() => loadOverrides(client.id)}
+                          />
+                        )}
+
+                        {/* Admin notes (always visible) */}
                         <div>
                           <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3 flex items-center gap-2">
                             <MessageSquare size={12} />

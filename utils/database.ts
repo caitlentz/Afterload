@@ -195,6 +195,61 @@ export async function checkReportReleased(email: string): Promise<boolean> {
   }
 }
 
+// ------------------------------------------------------------------
+// REPORT OVERRIDES (admin editing of report sections)
+// ------------------------------------------------------------------
+
+export type ReportOverride = {
+  section_key: string;
+  custom_content: string;
+  updated_at?: string;
+};
+
+export async function saveReportOverride(clientId: string, sectionKey: string, content: string) {
+  const { error } = await supabase.rpc('admin_save_report_override', {
+    p_client_id: clientId,
+    p_section_key: sectionKey,
+    p_content: content,
+  });
+  if (error) console.error('saveReportOverride error:', error);
+  return !error;
+}
+
+export async function deleteReportOverride(clientId: string, sectionKey: string) {
+  const { error } = await supabase.rpc('admin_delete_report_override', {
+    p_client_id: clientId,
+    p_section_key: sectionKey,
+  });
+  if (error) console.error('deleteReportOverride error:', error);
+  return !error;
+}
+
+export async function fetchReportOverrides(clientId: string): Promise<ReportOverride[]> {
+  const { data, error } = await supabase.rpc('admin_get_report_overrides', {
+    p_client_id: clientId,
+  });
+  if (error) {
+    console.error('fetchReportOverrides error:', error);
+    return [];
+  }
+  return (data as ReportOverride[]) || [];
+}
+
+export async function fetchReportOverridesByEmail(email: string): Promise<ReportOverride[]> {
+  const { data, error } = await supabase.rpc('get_report_overrides_by_email', {
+    p_email: email.toLowerCase(),
+  });
+  if (error) {
+    console.error('fetchReportOverridesByEmail error:', error);
+    return [];
+  }
+  return (data as ReportOverride[]) || [];
+}
+
+// ------------------------------------------------------------------
+// PAYMENT STATUS
+// ------------------------------------------------------------------
+
 export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
   const result: PaymentStatus = {
     depositPaid: false,

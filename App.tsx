@@ -536,7 +536,7 @@ export default function App() {
               <Login onBack={() => navigate(View.HOME)} onSuccess={handleLoginSuccess} />
             )}
             {activeView === View.FULL_REPORT && (
-              <FullReport intakeData={intakeData} onBack={() => navigate(View.DASHBOARD)} />
+              <FullReport intakeData={intakeData} userEmail={userEmail} onBack={() => navigate(View.DASHBOARD)} />
             )}
             {activeView === View.ADMIN && (
               <AdminView />
