@@ -297,3 +297,25 @@ export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
 
   return result;
 }
+
+// ------------------------------------------------------------------
+// FETCH INTAKE BY EMAIL
+// Returns the most recent intake answers for a client (for returning
+// users who no longer have intakeData in memory).
+// Uses SECURITY DEFINER RPC to bypass RLS on intake_responses.
+// ------------------------------------------------------------------
+export async function fetchIntakeByEmail(email: string): Promise<IntakeResponse | null> {
+  try {
+    const { data, error } = await supabase.rpc('fetch_intake_by_email', {
+      p_email: email.toLowerCase(),
+    });
+    if (error) {
+      console.error('fetchIntakeByEmail RPC error:', error);
+      return null;
+    }
+    return (data as IntakeResponse) || null;
+  } catch (e) {
+    console.error('fetchIntakeByEmail error:', e);
+    return null;
+  }
+}

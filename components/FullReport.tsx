@@ -9,7 +9,7 @@ import {
   FrictionCostEstimate, ExtractionReadiness, DelegationItem,
   EnrichedPhase, EnrichedPressurePoint
 } from '../utils/diagnosticEngine';
-import { fetchReportOverridesByEmail, ReportOverride } from '../utils/database';
+import { fetchReportOverridesByEmail, fetchIntakeByEmail, ReportOverride } from '../utils/database';
 
 // ============================================================
 // PROPS
@@ -921,21 +921,47 @@ const NextSteps = ({ phases, onBack }: { phases: EnrichedPhase[]; onBack: () => 
 // ============================================================
 
 export default function FullReport({ intakeData, userEmail, onBack }: FullReportProps) {
+  // If intakeData wasn't passed in (returning user), load from DB
+  const [loadedIntake, setLoadedIntake] = useState<IntakeResponse | null>(null);
+  const [loadingIntake, setLoadingIntake] = useState(false);
+
+  useEffect(() => {
+    if (intakeData) return; // Already have it in memory
+    const email = userEmail;
+    if (!email) return;
+    setLoadingIntake(true);
+    fetchIntakeByEmail(email)
+      .then((data) => { if (data) setLoadedIntake(data); })
+      .finally(() => setLoadingIntake(false));
+  }, [intakeData, userEmail]);
+
+  // Use prop data first, fall back to DB-loaded data
+  const effectiveIntake = intakeData || loadedIntake;
+
   const report = useMemo(
-    () => (intakeData ? runDiagnostic(intakeData).report : null),
-    [intakeData]
+    () => (effectiveIntake ? runDiagnostic(effectiveIntake).report : null),
+    [effectiveIntake]
   );
 
   const [overrides, setOverrides] = useState<ReportOverride[]>([]);
 
   // Fetch overrides for this client's report
   useEffect(() => {
-    const email = userEmail || intakeData?.email;
+    const email = userEmail || effectiveIntake?.email;
     if (!email) return;
     fetchReportOverridesByEmail(email).then(setOverrides).catch(() => {});
-  }, [userEmail, intakeData?.email]);
+  }, [userEmail, effectiveIntake?.email]);
 
   const overrideMap = useMemo(() => buildOverrideMap(overrides), [overrides]);
+
+  if (loadingIntake) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        <div className="w-6 h-6 border-2 border-brand-dark/20 border-t-brand-dark rounded-full animate-spin mb-4" />
+        <p className="text-brand-dark/40 font-lora">Loading your report…</p>
+      </div>
+    );
+  }
 
   if (!report) {
     return (
