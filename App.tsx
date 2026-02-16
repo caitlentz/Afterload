@@ -314,15 +314,57 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleInitialIntakeComplete = async (answers: IntakeResponse) => {
+  const handleInitialIntakeComplete = async (answers: IntakeResponse, password?: string) => {
     const { runPreviewDiagnostic } = await import('./utils/previewEngine');
     const preview = runPreviewDiagnostic(answers);
     setPreviewResult(preview);
     setIntakeData(answers);
-    navigate(View.DIAGNOSTIC_PREVIEW);
+
+    const email = answers.email || userEmail;
+
+    // If password provided and user not already logged in, create account and go to Dashboard
+    if (password && email && !userEmail) {
+      try {
+        const { supabase } = await import('./utils/supabase');
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: window.location.origin },
+        });
+
+        if (!signUpError && signUpData.session?.user?.email) {
+          // Auto-confirmed — sign in directly
+          setUserEmail(signUpData.session.user.email);
+          localStorage.setItem('afterload_dev_email', signUpData.session.user.email);
+          navigate(View.DASHBOARD);
+        } else if (!signUpError && signUpData.user && !signUpData.session) {
+          // Email confirmation required — still go to Dashboard but store email
+          setUserEmail(email);
+          localStorage.setItem('afterload_dev_email', email);
+          navigate(View.DASHBOARD);
+        } else {
+          // Sign-up failed (duplicate email, etc.) — fall back to preview + magic link
+          console.warn('Sign-up failed, falling back to magic link:', signUpError?.message);
+          navigate(View.DIAGNOSTIC_PREVIEW);
+          supabase.auth.signInWithOtp({
+            email,
+            options: { emailRedirectTo: window.location.origin },
+          });
+        }
+      } catch (err) {
+        // Supabase import or network error — fall back gracefully
+        console.warn('Account creation failed, showing preview:', err);
+        navigate(View.DIAGNOSTIC_PREVIEW);
+      }
+    } else if (userEmail) {
+      // Already logged in — go straight to Dashboard
+      navigate(View.DASHBOARD);
+    } else {
+      // No password provided — legacy flow, show preview directly
+      navigate(View.DIAGNOSTIC_PREVIEW);
+    }
 
     // Save to Supabase (non-blocking)
-    const email = answers.email || userEmail;
     if (email) {
       const [{ determineTrack }, { saveIntakeResponse, saveDiagnosticResult }] = await Promise.all([
         import('./utils/diagnosticEngine'),
@@ -332,17 +374,11 @@ export default function App() {
       const intakeId = await saveIntakeResponse(email, 'initial', answers, track);
       saveDiagnosticResult(email, 'preview', preview, intakeId || undefined);
 
-      // Notify admin + send magic link (non-blocking, fire-and-forget)
+      // Notify admin (non-blocking, fire-and-forget)
       import('./utils/supabase').then(({ supabase }) => {
         supabase.functions.invoke('notify-submission', {
           body: { email, mode: 'initial', track, clientName: answers.firstName },
         });
-        if (!userEmail) {
-          supabase.auth.signInWithOtp({
-            email,
-            options: { emailRedirectTo: window.location.origin },
-          });
-        }
       });
     }
   };

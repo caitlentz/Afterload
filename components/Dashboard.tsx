@@ -29,7 +29,7 @@ interface DashboardProps {
   paymentStatus: PaymentStatus;
   onViewReport: () => void;
   onViewFullReport: () => void;
-  onDiagnosticComplete: (answers: IntakeResponse) => void;
+  onDiagnosticComplete: (answers: IntakeResponse, password?: string) => void;
   onResumeIntake: () => void;
   onStartPayment: () => void;
   onEditAnswers: () => void;

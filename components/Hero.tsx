@@ -14,7 +14,7 @@ import Footer from './Footer';
 const Intake = lazy(() => import('./Intake'));
 
 interface HeroProps {
-  onDiagnosticComplete: (answers: IntakeResponse) => void;
+  onDiagnosticComplete: (answers: IntakeResponse, password?: string) => void;
   onLoginClick: () => void;
   userEmail?: string | null;
   key?: React.Key;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Check, ArrowRight, RotateCcw } from 'lucide-react';
+import { ArrowLeft, Check, ArrowRight, RotateCcw, Lock } from 'lucide-react';
 import { CLARITY_SESSION_QUESTIONS, ClarityQuestion } from '../utils/claritySessionQuestions';
 
 // Types for initial intake
@@ -19,7 +19,7 @@ interface InitialQuestion {
 }
 
 interface IntakeProps {
-  onComplete: (answers: any) => void;
+  onComplete: (answers: any, password?: string) => void;
   mode?: 'initial' | 'deep';
   initialDataMissing?: boolean;
   userEmail?: string | null;
@@ -80,7 +80,7 @@ function determineClarityTrack(intakeData: Record<string, any> | null): 'A' | 'B
 export default function Intake({ onComplete, mode = 'initial', initialDataMissing = false, userEmail }: IntakeProps) {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, any>>({});
-  const [contactForm, setContactForm] = useState({ firstName: '', email: userEmail || '', businessName: '', website: '', specificType: '' });
+  const [contactForm, setContactForm] = useState({ firstName: '', email: userEmail || '', businessName: '', website: '', specificType: '', password: '' });
   
   const STORAGE_KEY = `afterload_intake_progress_${mode}`;
   const [canRestore, setCanRestore] = useState(false);
@@ -139,7 +139,7 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
             setAnswers(parsed.answers || {});
             setStep(parsed.step || 0);
             if (mode === 'initial') {
-                setContactForm(parsed.contactForm || { firstName: '', email: '', businessName: '', website: '', specificType: '' });
+                setContactForm(parsed.contactForm || { firstName: '', email: '', businessName: '', website: '', specificType: '', password: '' });
             }
             setCanRestore(false);
           } catch (e) { console.error("Error restoring session", e); }
@@ -172,13 +172,14 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
     }
 
     if (nextStep >= questions.length) {
+        const { password: _pw, ...contactWithoutPassword } = contactForm;
         const finalAnswers = {
           ...currentAnswers,
-          ...contactForm,
+          ...contactWithoutPassword,
           ...(mode === 'deep' ? { _deepDiveComplete: true } : {}),
         };
         localStorage.removeItem(STORAGE_KEY);
-        onComplete(finalAnswers);
+        onComplete(finalAnswers, contactForm.password || undefined);
     } else {
         setStep(nextStep);
     }
@@ -230,7 +231,13 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
 
   const canProceed = () => {
     if (!currentQ) return false;
-    if (currentQ.type === 'form') return mode === 'initial' ? (contactForm.firstName && (contactForm.email || userEmail)) : true;
+    if (currentQ.type === 'form') {
+      if (mode !== 'initial') return true;
+      const hasName = !!contactForm.firstName;
+      const hasEmail = !!(contactForm.email || userEmail);
+      const hasPassword = !!userEmail || contactForm.password.length >= 6;
+      return hasName && hasEmail && hasPassword;
+    }
     const ans = answers[currentQ.id];
     if (currentQ.type === 'multi') return ans && ans.length > 0;
     if (currentQ.type === 'text' || currentQ.type === 'dollar') return true; 
@@ -266,7 +273,50 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
           case 'text': return <textarea value={answers[currentQ.id] || ''} onChange={(e) => handleTextChange(e)} placeholder={currentQ.placeholder} className="w-full h-40 p-5 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich focus:ring-1 focus:ring-brand-rich outline-none resize-none font-lora text-lg placeholder:text-brand-dark/30" />;
           case 'dollar': return <input type="text" value={answers[currentQ.id] || ''} onChange={(e) => handleTextChange(e)} placeholder={currentQ.placeholder} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg text-center" />;
           case 'form':
-              if (mode === 'initial') return (<div className="space-y-4"> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">First Name</label> <input type="text" value={contactForm.firstName} onChange={(e) => handleContactChange('firstName', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="Jane" /> </div> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Email</label> {userEmail ? (<div className="w-full p-4 rounded-xl bg-brand-dark/5 border border-brand-dark/10 font-serif text-lg text-brand-dark/60">{userEmail}</div>) : (<input type="email" value={contactForm.email} onChange={(e) => handleContactChange('email', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="jane@company.com" />)} </div> </div> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Business Name</label> <input type="text" value={contactForm.businessName} onChange={(e) => handleContactChange('businessName', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="Acme Inc." /> </div> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Website <span className="text-brand-dark/20">(optional)</span></label> <input type="url" value={contactForm.website} onChange={(e) => handleContactChange('website', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="yoursite.com" /> </div> <div className="space-y-1"> <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Industry Type</label> <input type="text" value={contactForm.specificType} onChange={(e) => handleContactChange('specificType', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="e.g. HVAC" /> </div> </div> </div>);
+              if (mode === 'initial') return (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">First Name</label>
+                      <input type="text" value={contactForm.firstName} onChange={(e) => handleContactChange('firstName', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="Jane" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Email</label>
+                      {userEmail ? (
+                        <div className="w-full p-4 rounded-xl bg-brand-dark/5 border border-brand-dark/10 font-serif text-lg text-brand-dark/60">{userEmail}</div>
+                      ) : (
+                        <input type="email" value={contactForm.email} onChange={(e) => handleContactChange('email', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="jane@company.com" />
+                      )}
+                    </div>
+                  </div>
+                  {!userEmail && (
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1 flex items-center gap-1.5">
+                        <Lock size={10} className="text-brand-dark/30" />
+                        Create Password
+                      </label>
+                      <input type="password" value={contactForm.password} onChange={(e) => handleContactChange('password', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="At least 6 characters" />
+                      {contactForm.password.length > 0 && contactForm.password.length < 6 && (
+                        <p className="text-[10px] text-red-400 ml-1 mt-1">Password must be at least 6 characters</p>
+                      )}
+                    </div>
+                  )}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Business Name</label>
+                    <input type="text" value={contactForm.businessName} onChange={(e) => handleContactChange('businessName', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="Acme Inc." />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Website <span className="text-brand-dark/20">(optional)</span></label>
+                      <input type="url" value={contactForm.website} onChange={(e) => handleContactChange('website', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="yoursite.com" />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold uppercase tracking-wider text-brand-dark/40 ml-1">Industry Type</label>
+                      <input type="text" value={contactForm.specificType} onChange={(e) => handleContactChange('specificType', e.target.value)} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" placeholder="e.g. HVAC" />
+                    </div>
+                  </div>
+                </div>
+              );
               if (currentQ.id === 'superpower_audit') return (<div className="space-y-4"> <input type="text" value={answers.superpower_1 || ''} onChange={(e) => handleTextChange(e, 'superpower_1')} placeholder="Skill 1" className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" /> <input type="text" value={answers.superpower_2 || ''} onChange={(e) => handleTextChange(e, 'superpower_2')} placeholder="Skill 2" className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg" /> </div>);
           default: return null;
       }
@@ -312,7 +362,7 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
                             )}
                             
                             {currentQ?.type !== 'single' && (
-                                <button onClick={() => handleNext()} disabled={!canProceed()} className={`px-8 py-3 rounded-full bg-brand-deep text-white font-bold tracking-wider text-xs uppercase flex items-center gap-2 transition-all hover:bg-brand-rich shadow-lg disabled:opacity-50 disabled:shadow-none`}>{currentQ?.type === 'form' ? (mode === 'initial' ? 'Get Report' : 'Submit Answers') : 'Next'} <ArrowRight size={14} /></button>
+                                <button onClick={() => handleNext()} disabled={!canProceed()} className={`px-8 py-3 rounded-full bg-brand-deep text-white font-bold tracking-wider text-xs uppercase flex items-center gap-2 transition-all hover:bg-brand-rich shadow-lg disabled:opacity-50 disabled:shadow-none`}>{currentQ?.type === 'form' ? (mode === 'initial' ? (userEmail ? 'Get Report' : 'Create Account & Get Report') : 'Submit Answers') : 'Next'} <ArrowRight size={14} /></button>
                             )}
                         </div>
                     </div>
