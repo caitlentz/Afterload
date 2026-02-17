@@ -60,8 +60,11 @@ describe('critical profile regressions', () => {
     });
 
     const preview = runPreviewDiagnostic(intake);
+    const eligibility = getPreviewEligibility(intake);
     expect(preview.primaryConstraint.label).toBe('Strategic Optimization');
     expect(preview.primaryConstraint.type).toBe('strategicOptimization');
     expect(preview.metadata.scores.capacityConstraint).toBe(0);
+    expect(eligibility.metadata.pattern).toBe('STRATEGIC');
+    expect(eligibility.metadata.primaryConstraint.label).toBe('Strategic Optimization');
   });
 });

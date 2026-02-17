@@ -2,6 +2,7 @@ import { IntakeResponse } from './diagnosticEngine';
 import { OPT } from './intakeOptionMap';
 import {
   calculateFounderDependencyScore,
+  detectConstraintCategory,
   resolveConstraintLabel,
   scoreDimensions,
   selectPrimarySecondaryDimensions,
@@ -19,7 +20,7 @@ export type PreviewEligibility = {
   outcome: 'OK';
   metadata: {
     founderDependencyScore: number;
-    pattern: 'FOUNDER' | 'SYSTEM' | 'DECISION' | 'CAPACITY' | 'MIXED';
+    pattern: 'FOUNDER' | 'SYSTEM' | 'DECISION' | 'CAPACITY' | 'MIXED' | 'STRATEGIC';
     confidence: 'HIGH' | 'MED' | 'LOW';
     primaryConstraint: { type: string; label: string; score: number };
     secondaryConstraint: { type: string; label: string; score: number };
@@ -32,9 +33,11 @@ function calculateFounderDependency(data: IntakeResponse): number {
 }
 
 function deriveOperationalPattern(
+  data: IntakeResponse,
   primary: RankedDimension,
   secondary: RankedDimension
-): 'FOUNDER' | 'SYSTEM' | 'DECISION' | 'CAPACITY' | 'MIXED' {
+): 'FOUNDER' | 'SYSTEM' | 'DECISION' | 'CAPACITY' | 'MIXED' | 'STRATEGIC' {
+  if (detectConstraintCategory(data) === 'STRATEGIC') return 'STRATEGIC';
   if (Math.abs(primary.score - secondary.score) <= 10) return 'MIXED';
   if (primary.type === 'founderCentralization') return 'FOUNDER';
   if (primary.type === 'structuralFragility') return 'SYSTEM';
@@ -51,16 +54,18 @@ function deriveConfidence(founderDependencyScore: number): 'HIGH' | 'MED' | 'LOW
 export function getPreviewEligibility(data: IntakeResponse): PreviewEligibility {
   const founderDependencyScore = calculateFounderDependency(data);
   const scores = scoreDimensions(data);
-  const { primary, secondary } = selectPrimarySecondaryDimensions(data, scores);
+  const { primary, secondary, category } = selectPrimarySecondaryDimensions(data, scores);
+  const strategic = category === 'STRATEGIC';
   const primaryConstraint: RankedDimension = {
-    ...primary,
-    label: resolveConstraintLabel(primary.type, data),
+    type: strategic ? ('strategicOptimization' as any) : primary.type,
+    label: strategic ? 'Strategic Optimization' : resolveConstraintLabel(primary.type, data),
+    score: primary.score,
   };
   const secondaryConstraint: RankedDimension = {
     ...secondary,
     label: resolveConstraintLabel(secondary.type, data),
   };
-  const pattern = deriveOperationalPattern(primaryConstraint, secondaryConstraint);
+  const pattern = deriveOperationalPattern(data, primaryConstraint, secondaryConstraint);
   const confidence = deriveConfidence(founderDependencyScore);
   const rationale = `Pattern: ${pattern} (primary=${primaryConstraint.label}) + (secondary=${secondaryConstraint.label}); confidence=${confidence}; MIXED=${pattern === 'MIXED'}.`;
 

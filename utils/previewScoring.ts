@@ -104,15 +104,24 @@ export function interpretFounderDependencyScore(score: number): {
 
 export function isWellDelegated(data: IntakeResponse): boolean {
   return (
-    data.revenue_generation === OPT.revenue_generation.TEAM_INDEPENDENT &&
-    data.final_decisions === OPT.final_decisions.RARELY_ME &&
+    (data.revenue_generation === OPT.revenue_generation.TEAM_INDEPENDENT ||
+      data.revenue_generation === OPT.revenue_generation.TEAM_REVIEWS) &&
+    (data.final_decisions === OPT.final_decisions.RARELY_ME ||
+      data.final_decisions === OPT.final_decisions.SHARED) &&
     data.process_documentation === OPT.process_documentation.FULLY &&
-    data.two_week_absence === OPT.two_week_absence.RUNS_NORMALLY
+    (data.two_week_absence === OPT.two_week_absence.RUNS_NORMALLY ||
+      data.two_week_absence === OPT.two_week_absence.ESCALATES)
   );
 }
 
 export function detectConstraintCategory(data: IntakeResponse): ConstraintCategory {
-  if (isWellDelegated(data)) return 'STRATEGIC';
+  const lowDependencySignals =
+    data.client_relationship === OPT.client_relationship.NO_FOUNDER ||
+    data.client_relationship === OPT.client_relationship.ASSIGNED;
+  const marketConstraint =
+    data.growth_limiter === OPT.growth_limiter.DEMAND ||
+    data.growth_limiter === OPT.growth_limiter.PRICING;
+  if (isWellDelegated(data) && (lowDependencySignals || marketConstraint)) return 'STRATEGIC';
 
   const knowledge =
     (

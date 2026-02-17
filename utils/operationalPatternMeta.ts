@@ -1,4 +1,4 @@
-export type OperationalPattern = 'FOUNDER' | 'DECISION' | 'SYSTEM' | 'CAPACITY' | 'MIXED';
+export type OperationalPattern = 'FOUNDER' | 'DECISION' | 'SYSTEM' | 'CAPACITY' | 'MIXED' | 'STRATEGIC';
 export type ConfidenceBand = 'HIGH' | 'MED' | 'LOW';
 
 export type ConstraintScore = {
@@ -19,6 +19,8 @@ export function describePattern(pattern: OperationalPattern): string {
       return 'Delivery bandwidth is the main ceiling; demand is outpacing available capacity.';
     case 'MIXED':
       return 'Two constraints are close in severity, so this is a blended bottleneck.';
+    case 'STRATEGIC':
+      return 'Operations are stable and independent; the next bottleneck is market growth, positioning, or pricing strategy.';
     default:
       return 'Operational pressure is distributed across multiple constraints.';
   }
