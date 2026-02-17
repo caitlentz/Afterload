@@ -11,7 +11,7 @@ import {
 } from '../utils/adminTypes';
 import {
   saveAdminNote, saveAdminTaggedNote, deleteAdminNote,
-  fetchReportOverrides, fetchQuestionPack,
+  fetchReportOverrides, fetchQuestionPack, fetchIntakeByEmail,
   ReportOverride, QuestionPack
 } from '../utils/database';
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
@@ -44,6 +44,7 @@ export default function AdminClientProfile({
   const [overrides, setOverrides] = useState<ReportOverride[]>([]);
   const [questionPack, setQuestionPack] = useState<QuestionPack | null>(null);
   const [packLoaded, setPackLoaded] = useState(false);
+  const [fallbackInitialAnswers, setFallbackInitialAnswers] = useState<IntakeResponse | null>(null);
 
   // Derived data
   const clientPayments = payments.filter(
@@ -59,17 +60,19 @@ export default function AdminClientProfile({
   // Fallback to latest intake if mode tags are missing/legacy so admin can still review and route.
   const initialIntake = explicitInitialIntake || latestIntake;
   const usedInitialFallback = !!latestIntake && !explicitInitialIntake;
-  const hasAnyIntake = !!latestIntake;
+  const effectiveInitialAnswers = (initialIntake?.answers || fallbackInitialAnswers) as IntakeResponse | null;
+  const usedEmailFallback = !initialIntake?.answers && !!fallbackInitialAnswers;
+  const hasAnyIntake = !!effectiveInitialAnswers;
   const deepIntake = client.intake_responses?.find(r => r.mode === 'deep');
   const hasClaritySession = !!deepIntake;
-  const answers = latestIntake?.answers || {};
+  const answers = effectiveInitialAnswers || {};
   const biz = getBusinessInfo(answers);
 
   // Run preview diagnostic from initial intake
   const previewFromInitial: PreviewResult | null = (() => {
-    if (!initialIntake?.answers) return null;
+    if (!effectiveInitialAnswers) return null;
     try {
-      return runPreviewDiagnostic(initialIntake.answers);
+      return runPreviewDiagnostic(effectiveInitialAnswers);
     } catch (e) {
       console.error('Error running preview for', client.email, e);
       return null;
@@ -77,7 +80,7 @@ export default function AdminClientProfile({
   })();
   const storedPreviewResult = client.diagnostic_results?.find((r: any) => r.result_type === 'preview')?.report as PreviewResult | null;
   const previewResult: PreviewResult | null = previewFromInitial || storedPreviewResult || null;
-  const previewEligibility = initialIntake?.answers ? getPreviewEligibility(initialIntake.answers) : null;
+  const previewEligibility = effectiveInitialAnswers ? getPreviewEligibility(effectiveInitialAnswers) : null;
 
   // Run full diagnostic from deep intake
   const fullReport = (() => {
@@ -106,6 +109,20 @@ export default function AdminClientProfile({
   }, [client.id]);
 
   useEffect(() => { loadQuestionPack(); }, [loadQuestionPack]);
+  useEffect(() => {
+    let cancelled = false;
+    async function loadFallbackIntake() {
+      if (initialIntake?.answers) {
+        setFallbackInitialAnswers(null);
+        return;
+      }
+      const byEmail = await fetchIntakeByEmail(client.email);
+      if (!cancelled) setFallbackInitialAnswers(byEmail);
+    }
+    loadFallbackIntake();
+    return () => { cancelled = true; };
+  }, [client.email, initialIntake?.answers]);
+
   const packStatus = (questionPack?.status || 'none').toLowerCase();
   const isDraftPack = packStatus === 'draft';
   const isShippedPack = packStatus === 'shipped';
@@ -364,13 +381,21 @@ export default function AdminClientProfile({
         )}
 
         {/* ─── Question Pack Editor ─── */}
-        {packLoaded && (initialIntake || questionPack) && (
+        {packLoaded && (effectiveInitialAnswers || questionPack) && (
           <div className="bg-white/50 backdrop-blur-md rounded-xl border border-white/60 p-5 animate-[fadeInUp_0.4s_ease-out_0.2s_both]">
             {usedInitialFallback && (
               <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
                 <div className="text-[10px] font-bold uppercase tracking-wider">Fallback Intake Mode</div>
                 <div className="text-xs mt-1">
                   No explicit <code>mode=initial</code> response was found. Using latest intake record for preview and routing.
+                </div>
+              </div>
+            )}
+            {usedEmailFallback && (
+              <div className="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-800">
+                <div className="text-[10px] font-bold uppercase tracking-wider">Email-Based Intake Recovery</div>
+                <div className="text-xs mt-1">
+                  Intake answers were recovered by email fallback because no intake rows were attached to this client record.
                 </div>
               </div>
             )}
@@ -399,7 +424,7 @@ export default function AdminClientProfile({
               <QuestionPackEditor
                 clientId={client.id}
                 clientEmail={client.email}
-                intakeAnswers={(initialIntake?.answers || {}) as IntakeResponse}
+                intakeAnswers={(effectiveInitialAnswers || {}) as IntakeResponse}
                 previewResult={previewResult}
                 existingPack={questionPack}
                 onPackSaved={loadQuestionPack}

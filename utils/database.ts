@@ -7,11 +7,12 @@ import { PreviewResult } from './previewEngine';
 // Upserts the client record (creates or updates by email)
 // ------------------------------------------------------------------
 export async function saveClient(email: string, data: Partial<IntakeResponse>) {
+  const normalizedEmail = email.trim().toLowerCase();
   const { error } = await supabase
     .from('clients')
     .upsert(
       {
-        email,
+        email: normalizedEmail,
         first_name: data.firstName || null,
         business_name: data.businessName || null,
         website: data.website || null,
@@ -34,21 +35,22 @@ export async function saveIntakeResponse(
   answers: IntakeResponse,
   track?: 'A' | 'B' | 'C'
 ) {
+  const normalizedEmail = email.trim().toLowerCase();
   // First ensure client exists
-  await saveClient(email, answers);
+  await saveClient(normalizedEmail, answers);
 
   // Get client ID
   const { data: client } = await supabase
     .from('clients')
     .select('id')
-    .eq('email', email)
+    .eq('email', normalizedEmail)
     .single();
 
   const { data, error } = await supabase
     .from('intake_responses')
     .insert({
       client_id: client?.id || null,
-      email,
+      email: normalizedEmail,
       mode,
       track: track || null,
       answers,
@@ -70,11 +72,12 @@ export async function saveDiagnosticResult(
   report: PreviewResult | any,
   intakeResponseId?: string
 ) {
+  const normalizedEmail = email.trim().toLowerCase();
   // Get client ID
   const { data: client } = await supabase
     .from('clients')
     .select('id')
-    .eq('email', email)
+    .eq('email', normalizedEmail)
     .single();
 
   const { error } = await supabase
@@ -82,7 +85,7 @@ export async function saveDiagnosticResult(
     .insert({
       client_id: client?.id || null,
       intake_response_id: intakeResponseId || null,
-      email,
+      email: normalizedEmail,
       result_type: resultType,
       report,
     });
