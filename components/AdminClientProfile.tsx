@@ -55,8 +55,10 @@ export default function AdminClientProfile({
   const sortedIntakes = [...(client.intake_responses || [])]
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
   const latestIntake = sortedIntakes[0];
+  const explicitInitialIntake = client.intake_responses?.find(r => r.mode === 'initial');
   // Fallback to latest intake if mode tags are missing/legacy so admin can still review and route.
-  const initialIntake = client.intake_responses?.find(r => r.mode === 'initial') || latestIntake;
+  const initialIntake = explicitInitialIntake || latestIntake;
+  const usedInitialFallback = !!latestIntake && !explicitInitialIntake;
   const deepIntake = client.intake_responses?.find(r => r.mode === 'deep');
   const hasClaritySession = !!deepIntake;
   const answers = latestIntake?.answers || {};
@@ -347,6 +349,14 @@ export default function AdminClientProfile({
         {/* ─── Question Pack Editor ─── */}
         {initialIntake && packLoaded && (
           <div className="bg-white/50 backdrop-blur-md rounded-xl border border-white/60 p-5 animate-[fadeInUp_0.4s_ease-out_0.2s_both]">
+            {usedInitialFallback && (
+              <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+                <div className="text-[10px] font-bold uppercase tracking-wider">Fallback Intake Mode</div>
+                <div className="text-xs mt-1">
+                  No explicit <code>mode=initial</code> response was found. Using latest intake record for preview and routing.
+                </div>
+              </div>
+            )}
             <div className="mb-4 p-3 rounded-lg bg-brand-dark/[0.03] border border-brand-dark/10">
               <div className="flex items-center gap-2 flex-wrap mb-2">
                 <span className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/35">Question Pack</span>
