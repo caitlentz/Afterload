@@ -17,6 +17,7 @@ import {
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
 import { runPreviewDiagnostic, PreviewResult } from '../utils/previewEngine';
 import { getPreviewEligibility } from '../utils/normalizeIntake';
+import { isOutdatedPack } from '../utils/deepDiveBuilder';
 
 const ReportEditor = lazy(() => import('./ReportEditor'));
 const QuestionPackEditor = lazy(() => import('./QuestionPackEditor'));
@@ -98,6 +99,10 @@ export default function AdminClientProfile({
   }, [client.id]);
 
   useEffect(() => { loadQuestionPack(); }, [loadQuestionPack]);
+  const packStatus = (questionPack?.status || 'none').toLowerCase();
+  const isDraftPack = packStatus === 'draft';
+  const isShippedPack = packStatus === 'shipped';
+  const packOutdated = isDraftPack && isOutdatedPack(questionPack?.pack_meta);
 
   // ─── Admin Actions ────────────────────────────────────────────────
 
@@ -340,6 +345,27 @@ export default function AdminClientProfile({
         {/* ─── Question Pack Editor ─── */}
         {initialIntake && packLoaded && (
           <div className="bg-white/50 backdrop-blur-md rounded-xl border border-white/60 p-5 animate-[fadeInUp_0.4s_ease-out_0.2s_both]">
+            <div className="mb-4 p-3 rounded-lg bg-brand-dark/[0.03] border border-brand-dark/10">
+              <div className="flex items-center gap-2 flex-wrap mb-2">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/35">Question Pack</span>
+                <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  isShippedPack ? 'bg-green-100 text-green-700' :
+                  isDraftPack ? 'bg-amber-100 text-amber-700' :
+                  'bg-brand-dark/10 text-brand-dark/50'
+                }`}>
+                  {packStatus.toUpperCase()}
+                </span>
+                {packOutdated && (
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                    Outdated
+                  </span>
+                )}
+              </div>
+              <div className="text-[11px] text-brand-dark/55">
+                Builder version: {questionPack?.pack_meta?.builderVersion || '—'} ·
+                Question bank version: {questionPack?.pack_meta?.questionBankVersion || '—'}
+              </div>
+            </div>
             <Suspense fallback={<div className="animate-pulse h-32 bg-brand-dark/5 rounded-xl" />}>
               <QuestionPackEditor
                 clientId={client.id}

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { buildDeepDiveQuestionSet, DeepDivePrefs } from '../deepDiveBuilder';
+import {
+  buildDeepDiveQuestionSet,
+  DeepDivePrefs,
+  BUILDER_VERSION,
+  QUESTION_BANK_VERSION,
+  isOutdatedPack,
+} from '../deepDiveBuilder';
 import { runPreviewDiagnostic, PreviewResult } from '../previewEngine';
 import type { IntakeResponse } from '../diagnosticEngine';
 
@@ -342,6 +348,27 @@ describe('buildDeepDiveQuestionSet', () => {
     expect(result.packMeta.selectedModules.length).toBeGreaterThanOrEqual(2);
     expect(result.packMeta.spineCount).toBeGreaterThan(0);
     expect(result.packMeta.estimatedMinutes).toBeGreaterThan(0);
+    expect(result.packMeta.builderVersion).toBe(BUILDER_VERSION);
+    expect(result.packMeta.questionBankVersion).toBe(QUESTION_BANK_VERSION);
+  });
+
+  it('isOutdatedPack returns true when versions mismatch', () => {
+    expect(isOutdatedPack({
+      builderVersion: 'older',
+      questionBankVersion: QUESTION_BANK_VERSION,
+    })).toBe(true);
+
+    expect(isOutdatedPack({
+      builderVersion: BUILDER_VERSION,
+      questionBankVersion: 'older',
+    })).toBe(true);
+  });
+
+  it('isOutdatedPack returns false when versions match', () => {
+    expect(isOutdatedPack({
+      builderVersion: BUILDER_VERSION,
+      questionBankVersion: QUESTION_BANK_VERSION,
+    })).toBe(false);
   });
 
   // ── Track-specific questions included ──

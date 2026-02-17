@@ -32,6 +32,8 @@ export type PackMeta = {
   trackCount: number;
   personableCount: number;
   estimatedMinutes: number;
+  builderVersion: string;
+  questionBankVersion: string;
 };
 
 export type DeepDiveResult = {
@@ -40,6 +42,9 @@ export type DeepDiveResult = {
 };
 
 // ── Internal constants ──
+
+export const BUILDER_VERSION = '2026-02-17.1';
+export const QUESTION_BANK_VERSION = '2026-02-17.1';
 
 const MODE_TARGETS: Record<DeepDiveMode, number> = {
   SHORT: 15,
@@ -135,6 +140,16 @@ function estimateMinutes(questions: ClarityQuestion[]): number {
 function generatePackId(track: string, primary: string, mode: string): string {
   const hash = `${track}-${primary}-${mode}`.replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
   return `pack_${hash}`;
+}
+
+export function isOutdatedPack(
+  packMeta?: Partial<Pick<PackMeta, 'builderVersion' | 'questionBankVersion'>> | null
+): boolean {
+  if (!packMeta) return true;
+  return (
+    packMeta.builderVersion !== BUILDER_VERSION ||
+    packMeta.questionBankVersion !== QUESTION_BANK_VERSION
+  );
 }
 
 // ── Core builder ──
@@ -329,6 +344,8 @@ export function buildDeepDiveQuestionSet(args: {
     trackCount,
     personableCount,
     estimatedMinutes: estimateMinutes(finalQuestions),
+    builderVersion: BUILDER_VERSION,
+    questionBankVersion: QUESTION_BANK_VERSION,
   };
 
   return { questions: finalQuestions, packMeta };

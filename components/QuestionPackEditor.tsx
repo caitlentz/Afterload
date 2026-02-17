@@ -4,7 +4,13 @@ import {
   Send, Save, Package, Layers, Clock, AlertTriangle, CheckCircle
 } from 'lucide-react';
 import { ClarityQuestion, CLARITY_SESSION_QUESTIONS } from '../utils/claritySessionQuestions';
-import { buildDeepDiveQuestionSet, PackMeta } from '../utils/deepDiveBuilder';
+import {
+  buildDeepDiveQuestionSet,
+  PackMeta,
+  BUILDER_VERSION,
+  QUESTION_BANK_VERSION,
+  isOutdatedPack,
+} from '../utils/deepDiveBuilder';
 import { saveQuestionPack, QuestionPack } from '../utils/database';
 import type { IntakeResponse } from '../utils/diagnosticEngine';
 import type { PreviewResult } from '../utils/previewEngine';
@@ -77,6 +83,9 @@ export default function QuestionPackEditor({
   const [packStatus, setPackStatus] = useState<'draft' | 'shipped' | 'custom' | 'none'>(
     existingPack?.status || 'none'
   );
+  const isShipped = packStatus === 'shipped';
+  const isDraft = packStatus === 'draft';
+  const isPackOutdated = isOutdatedPack(packMeta);
 
   // Generate or load pack on mount
   useEffect(() => {
@@ -89,14 +98,17 @@ export default function QuestionPackEditor({
     }
   }, [existingPack, previewResult]);
 
-  const generatePack = () => {
+  const generatePack = (preservePackId?: string) => {
     if (!previewResult) return;
     const result = buildDeepDiveQuestionSet({
       intake: intakeAnswers,
       preview: previewResult,
     });
+    const nextPackMeta = preservePackId
+      ? { ...result.packMeta, packId: preservePackId }
+      : result.packMeta;
     setQuestions(result.questions);
-    setPackMeta(result.packMeta);
+    setPackMeta(nextPackMeta);
     setHasChanges(true);
   };
 
@@ -120,6 +132,7 @@ export default function QuestionPackEditor({
   // ─── Actions ────────────────────────────────────────────────────
 
   const moveQuestion = (index: number, direction: -1 | 1) => {
+    if (isShipped) return;
     const newIndex = index + direction;
     if (newIndex < 0 || newIndex >= questions.length) return;
     const updated = [...questions];
@@ -129,11 +142,13 @@ export default function QuestionPackEditor({
   };
 
   const removeQuestion = (id: string) => {
+    if (isShipped) return;
     setQuestions(prev => prev.filter(q => q.id !== id));
     setHasChanges(true);
   };
 
   const addQuestion = (question: ClarityQuestion) => {
+    if (isShipped) return;
     setQuestions(prev => [...prev, question]);
     setShowAddSearch(false);
     setAddSearchQuery('');
@@ -141,11 +156,13 @@ export default function QuestionPackEditor({
   };
 
   const startEditQuestion = (q: ClarityQuestion) => {
+    if (isShipped) return;
     setEditingQuestionId(q.id);
     setEditText(q.text);
   };
 
   const saveQuestionEdit = (id: string) => {
+    if (isShipped) return;
     const trimmed = editText.trim();
     if (!trimmed) return;
     setQuestions(prev =>
@@ -157,6 +174,7 @@ export default function QuestionPackEditor({
   };
 
   const handleSaveDraft = async () => {
+    if (isShipped) return;
     if (!packMeta) return;
     setSaving(true);
     await saveQuestionPack(clientId, questions, packMeta, 'draft');
@@ -167,6 +185,7 @@ export default function QuestionPackEditor({
   };
 
   const handleShip = async () => {
+    if (isShipped) return;
     if (!packMeta) return;
     setSaving(true);
     await saveQuestionPack(clientId, questions, packMeta, 'shipped');
@@ -177,8 +196,32 @@ export default function QuestionPackEditor({
   };
 
   const handleReset = () => {
-    generatePack();
+    if (isShipped) return;
+    const existingPackId = packMeta?.packId;
+    generatePack(existingPackId);
     setPackStatus('none');
+  };
+
+  const handleRegenerateDraft = async () => {
+    if (!previewResult || !packMeta || !isDraft || !isPackOutdated || isShipped) return;
+
+    const result = buildDeepDiveQuestionSet({
+      intake: intakeAnswers,
+      preview: previewResult,
+    });
+    const overwrittenPackMeta: PackMeta = {
+      ...result.packMeta,
+      packId: packMeta.packId, // Option A: overwrite draft, keep same pack_id
+    };
+
+    setSaving(true);
+    await saveQuestionPack(clientId, result.questions, overwrittenPackMeta, 'draft');
+    setQuestions(result.questions);
+    setPackMeta(overwrittenPackMeta);
+    setPackStatus('draft');
+    setHasChanges(false);
+    setSaving(false);
+    onPackSaved();
   };
 
   if (!previewResult && !existingPack) {
@@ -202,12 +245,18 @@ export default function QuestionPackEditor({
           {packStatus === 'shipped' && (
             <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-green-100 text-green-700 flex items-center gap-1">
               <CheckCircle size={10} />
-              Shipped
+              Locked
             </span>
           )}
           {packStatus === 'draft' && (
             <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">
               Draft
+            </span>
+          )}
+          {isDraft && isPackOutdated && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full bg-red-100 text-red-700 flex items-center gap-1">
+              <AlertTriangle size={10} />
+              Outdated
             </span>
           )}
           {hasChanges && (
@@ -263,8 +312,30 @@ export default function QuestionPackEditor({
                 ~{packMeta.estimatedMinutes} min
               </div>
             </div>
+            <div>
+              <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-1">Builder Version</div>
+              <div className="text-xs text-brand-dark/60 font-medium">{packMeta.builderVersion || '—'}</div>
+            </div>
+            <div>
+              <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-1">Question Bank Version</div>
+              <div className="text-xs text-brand-dark/60 font-medium">{packMeta.questionBankVersion || '—'}</div>
+            </div>
+          </div>
+          <div className="mt-3 text-[10px] text-brand-dark/35">
+            Current logic: builder {BUILDER_VERSION} · bank {QUESTION_BANK_VERSION}
           </div>
         </div>
+      )}
+
+      {isDraft && isPackOutdated && (
+        <button
+          onClick={handleRegenerateDraft}
+          disabled={saving || !previewResult}
+          className="w-full py-3 rounded-xl bg-red-600 text-white text-xs font-bold uppercase tracking-widest hover:bg-red-700 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+        >
+          <RotateCcw size={14} />
+          Regenerate from latest logic
+        </button>
       )}
 
       {/* ─── Question List ─── */}
@@ -273,13 +344,15 @@ export default function QuestionPackEditor({
           <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30">
             Questions ({questions.length})
           </div>
-          <button
-            onClick={() => setShowAddSearch(!showAddSearch)}
-            className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand-mid hover:text-brand-dark transition-colors"
-          >
-            <Plus size={12} />
-            Add Question
-          </button>
+          {!isShipped && (
+            <button
+              onClick={() => setShowAddSearch(!showAddSearch)}
+              className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand-mid hover:text-brand-dark transition-colors"
+            >
+              <Plus size={12} />
+              Add Question
+            </button>
+          )}
         </div>
 
         {/* Add question search */}
@@ -344,7 +417,7 @@ export default function QuestionPackEditor({
               <div className="flex flex-col items-center gap-0.5 shrink-0 pt-0.5">
                 <button
                   onClick={() => moveQuestion(idx, -1)}
-                  disabled={idx === 0}
+                  disabled={isShipped || idx === 0}
                   className="p-0.5 rounded text-brand-dark/15 hover:text-brand-dark/40 disabled:opacity-30 transition-colors"
                 >
                   <ChevronUp size={10} />
@@ -352,7 +425,7 @@ export default function QuestionPackEditor({
                 <span className="text-[9px] font-bold text-brand-dark/25 w-5 text-center">{idx + 1}</span>
                 <button
                   onClick={() => moveQuestion(idx, 1)}
-                  disabled={idx === questions.length - 1}
+                  disabled={isShipped || idx === questions.length - 1}
                   className="p-0.5 rounded text-brand-dark/15 hover:text-brand-dark/40 disabled:opacity-30 transition-colors"
                 >
                   <ChevronDown size={10} />
@@ -406,56 +479,65 @@ export default function QuestionPackEditor({
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                {editingQuestionId !== q.id && (
+              {!isShipped && (
+                <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {editingQuestionId !== q.id && (
+                    <button
+                      onClick={() => startEditQuestion(q)}
+                      className="p-1.5 rounded-lg hover:bg-brand-dark/5 text-brand-dark/20 hover:text-brand-dark/50 transition-colors"
+                      title="Edit question text"
+                    >
+                      <Edit3 size={11} />
+                    </button>
+                  )}
                   <button
-                    onClick={() => startEditQuestion(q)}
-                    className="p-1.5 rounded-lg hover:bg-brand-dark/5 text-brand-dark/20 hover:text-brand-dark/50 transition-colors"
-                    title="Edit question text"
+                    onClick={() => removeQuestion(q.id)}
+                    className="p-1.5 rounded-lg hover:bg-red-50 text-brand-dark/20 hover:text-red-500 transition-colors"
+                    title="Remove question"
                   >
-                    <Edit3 size={11} />
+                    <X size={11} />
                   </button>
-                )}
-                <button
-                  onClick={() => removeQuestion(q.id)}
-                  className="p-1.5 rounded-lg hover:bg-red-50 text-brand-dark/20 hover:text-red-500 transition-colors"
-                  title="Remove question"
-                >
-                  <X size={11} />
-                </button>
-              </div>
+                </div>
+              )}
             </div>
           </div>
         ))}
       </div>
 
       {/* ─── Action Buttons ─── */}
-      <div className="flex flex-col sm:flex-row gap-2 pt-2">
-        <button
-          onClick={handleSaveDraft}
-          disabled={saving || questions.length === 0}
-          className="flex-1 py-3 rounded-xl bg-white border border-brand-dark/10 text-xs font-bold uppercase tracking-widest text-brand-dark/60 hover:bg-brand-dark/5 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
-        >
-          <Save size={14} />
-          Save as Draft
-        </button>
-        <button
-          onClick={handleShip}
-          disabled={saving || questions.length === 0}
-          className="flex-1 py-3 rounded-xl bg-brand-dark text-white text-xs font-bold uppercase tracking-widest hover:bg-brand-deep transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
-        >
-          <Send size={14} />
-          {packStatus === 'shipped' ? 'Update & Re-ship' : 'Ship to Client'}
-        </button>
-        <button
-          onClick={handleReset}
-          disabled={saving}
-          className="py-3 px-4 rounded-xl border border-brand-dark/10 text-xs font-bold uppercase tracking-widest text-brand-dark/40 hover:text-brand-dark/60 hover:bg-brand-dark/5 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
-          title="Re-generate from intake data"
-        >
-          <RotateCcw size={14} />
-        </button>
-      </div>
+      {!isShipped && (
+        <div className="flex flex-col sm:flex-row gap-2 pt-2">
+          <button
+            onClick={handleSaveDraft}
+            disabled={saving || questions.length === 0}
+            className="flex-1 py-3 rounded-xl bg-white border border-brand-dark/10 text-xs font-bold uppercase tracking-widest text-brand-dark/60 hover:bg-brand-dark/5 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            <Save size={14} />
+            Save as Draft
+          </button>
+          <button
+            onClick={handleShip}
+            disabled={saving || questions.length === 0}
+            className="flex-1 py-3 rounded-xl bg-brand-dark text-white text-xs font-bold uppercase tracking-widest hover:bg-brand-deep transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+          >
+            <Send size={14} />
+            Ship to Client
+          </button>
+          <button
+            onClick={handleReset}
+            disabled={saving}
+            className="py-3 px-4 rounded-xl border border-brand-dark/10 text-xs font-bold uppercase tracking-widest text-brand-dark/40 hover:text-brand-dark/60 hover:bg-brand-dark/5 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+            title="Re-generate from intake data"
+          >
+            <RotateCcw size={14} />
+          </button>
+        </div>
+      )}
+      {isShipped && (
+        <div className="py-3 px-4 rounded-xl bg-green-50 border border-green-100 text-[10px] font-bold uppercase tracking-widest text-green-700 text-center">
+          Shipped pack is locked
+        </div>
+      )}
     </div>
   );
 }
