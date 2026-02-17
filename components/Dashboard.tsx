@@ -16,11 +16,9 @@ import {
   X,
   Check,
   Sparkles,
-  Download,
 } from 'lucide-react';
 import type { IntakeResponse, DiagnosticResult } from '../utils/diagnosticEngine';
 import type { PaymentStatus } from '../utils/database';
-import type { PreviewResult } from '../utils/previewEngine';
 import { getPreviewEligibility } from '../utils/normalizeIntake';
 import {
   describePattern,
@@ -34,7 +32,6 @@ const Intake = lazy(() => import('./Intake'));
 interface DashboardProps {
   userEmail: string;
   intakeData: IntakeResponse | null;
-  previewResult: PreviewResult | null;
   diagnosticResult: DiagnosticResult | null;
   paymentStatus: PaymentStatus;
   questionPackStatus?: 'none' | 'draft' | 'shipped';
@@ -129,7 +126,6 @@ function getContextMessage(stage: string, firstName: string): string {
 export default function Dashboard({
   userEmail,
   intakeData,
-  previewResult,
   diagnosticResult,
   paymentStatus,
   questionPackStatus = 'none',
@@ -149,7 +145,6 @@ export default function Dashboard({
   const [editName, setEditName] = useState('');
   const [reportReleased, setReportReleased] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
-  const previewSectionRef = useRef<HTMLDivElement>(null);
 
   const hasReport = !!diagnosticResult;
   // Detect deep dive by checking for question IDs unique to the deep dive,
@@ -227,60 +222,6 @@ export default function Dashboard({
 
   const greeting = getGreeting();
   const contextMessage = getContextMessage(stage, firstName);
-  const hasMiniPreview = !!previewResult;
-
-  const openPreviewOnDashboard = () => {
-    if (!hasMiniPreview) {
-      onViewReport();
-      return;
-    }
-    previewSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-
-  const handleDownloadPreview = () => {
-    if (!previewResult) return;
-    const safeName = (previewResult.businessName || 'afterload-preview')
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-    const dateStr = new Date().toISOString().slice(0, 10);
-    const lines = [
-      `${previewResult.businessName} — Mini Preview Report`,
-      `Date: ${previewResult.date}`,
-      '',
-      `Primary Constraint: ${previewResult.primaryConstraint.label}`,
-      `Secondary Constraint: ${previewResult.secondaryConstraint.label}`,
-      `Founder Dependency: ${previewResult.founderDependencyScore}/100 (${previewResult.founderDependencyLevel})`,
-      '',
-      'Constraint Snapshot',
-      previewResult.constraintSnapshot,
-      '',
-      'Compound Narrative',
-      previewResult.constraintCompoundNarrative,
-      '',
-      'Exposure Metrics',
-      ...previewResult.exposureMetrics.map(m => `- ${m}`),
-      '',
-      'Continuity Risk',
-      previewResult.continuityRisk,
-      '',
-      'Load Trajectory',
-      previewResult.loadTrajectory,
-      '',
-      'Structural Tension',
-      previewResult.structuralTension,
-    ];
-
-    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${safeName}-mini-preview-${dateStr}.txt`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-  };
 
   return (
     <div className="min-h-screen w-full relative z-20 pt-28 pb-20 px-6">
@@ -481,7 +422,7 @@ export default function Dashboard({
           {stage === 'preview_ready' && (
             <div className="space-y-4">
               <button
-                onClick={openPreviewOnDashboard}
+                onClick={onViewReport}
                 className="w-full text-left bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm hover:shadow-lg transition-all group"
               >
                 <div className="flex items-start justify-between">
@@ -493,10 +434,10 @@ export default function Dashboard({
                       </span>
                     </div>
                     <h2 className="font-serif text-2xl md:text-3xl text-brand-dark mb-2">
-                      View Your Preview Report Below
+                      View Your Preview Report
                     </h2>
                     <p className="text-brand-dark/50 text-sm max-w-md font-lora">
-                      We identified some patterns. Your full mini report is now on this page.
+                      We identified some patterns. This is what we can see from the surface.
                     </p>
                   </div>
                   <ChevronRight
@@ -583,7 +524,7 @@ export default function Dashboard({
 
               {intakeData && (
                 <button
-                  onClick={openPreviewOnDashboard}
+                  onClick={onViewReport}
                   className="w-full text-left bg-white/50 backdrop-blur-xl p-5 rounded-2xl border border-white/60 hover:bg-white/70 transition-all group"
                 >
                   <div className="flex items-center justify-between">
@@ -650,7 +591,7 @@ export default function Dashboard({
               {/* Preview link */}
               {intakeData && (
                 <button
-                  onClick={openPreviewOnDashboard}
+                  onClick={onViewReport}
                   className="w-full text-left bg-white/50 backdrop-blur-xl p-5 rounded-2xl border border-white/60 hover:bg-white/70 transition-all group"
                 >
                   <div className="flex items-center justify-between">
@@ -665,78 +606,6 @@ export default function Dashboard({
             </div>
           )}
         </div>
-
-        {/* Full Mini Preview Report (moved onto Dashboard) */}
-        {hasMiniPreview && (
-          <div
-            ref={previewSectionRef}
-            className="mb-8 animate-[fadeInUp_0.6s_ease-out_0.24s_both]"
-          >
-            <div className="flex items-center justify-between mb-4 gap-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30">
-                Mini Preview Report
-              </div>
-              <button
-                onClick={handleDownloadPreview}
-                className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/70 border border-white/80 text-[10px] font-bold uppercase tracking-wider text-brand-dark/60 hover:bg-white hover:text-brand-dark transition-colors"
-              >
-                <Download size={12} />
-                Download
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-brand-dark text-white p-6 rounded-2xl">
-                <div className="text-[9px] font-bold uppercase tracking-wider text-white/60 mb-2">
-                  Constraint Snapshot
-                </div>
-                <p className="text-sm text-white/85 font-lora leading-relaxed">{previewResult.constraintSnapshot}</p>
-              </div>
-
-              <div className="bg-white/60 backdrop-blur-xl p-5 rounded-2xl border border-white/80">
-                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3">Top Constraints</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                  <div className="bg-red-50/60 rounded-xl p-3 border border-red-100/70">
-                    <div className="text-[9px] font-bold uppercase tracking-wider text-red-500 mb-1">Primary</div>
-                    <div className="text-sm font-medium text-brand-dark">{previewResult.primaryConstraint.label}</div>
-                  </div>
-                  <div className="bg-amber-50/60 rounded-xl p-3 border border-amber-100/70">
-                    <div className="text-[9px] font-bold uppercase tracking-wider text-amber-500 mb-1">Secondary</div>
-                    <div className="text-sm font-medium text-brand-dark">{previewResult.secondaryConstraint.label}</div>
-                  </div>
-                </div>
-                <p className="text-xs text-brand-dark/60 font-lora leading-relaxed">{previewResult.constraintCompoundNarrative}</p>
-              </div>
-
-              <div className="bg-white/60 backdrop-blur-xl p-5 rounded-2xl border border-white/80">
-                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3">Structural Exposure</div>
-                <div className="space-y-1.5">
-                  {previewResult.exposureMetrics.map((metric, idx) => (
-                    <div key={idx} className="text-xs text-brand-dark/65 flex items-start gap-2">
-                      <span className="text-brand-dark/30 mt-0.5">•</span>
-                      <span>{metric}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white/80">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">Continuity Risk</div>
-                  <p className="text-[11px] text-brand-dark/60 font-lora leading-relaxed">{previewResult.continuityRisk}</p>
-                </div>
-                <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white/80">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">Load Trajectory</div>
-                  <p className="text-[11px] text-brand-dark/60 font-lora leading-relaxed">{previewResult.loadTrajectory}</p>
-                </div>
-                <div className="bg-white/60 backdrop-blur-xl p-4 rounded-2xl border border-white/80">
-                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">Structural Tension</div>
-                  <p className="text-[11px] text-brand-dark/60 font-lora leading-relaxed">{previewResult.structuralTension}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Quick Stats (only if we have data) */}
         {intakeData && Object.keys(intakeData).length > 3 && (
