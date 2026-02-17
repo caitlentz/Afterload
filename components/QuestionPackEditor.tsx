@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ChevronUp, ChevronDown, X, Edit3, Plus, Search, RotateCcw,
   Send, Save, Package, Layers, Clock, AlertTriangle, CheckCircle
@@ -80,6 +80,7 @@ export default function QuestionPackEditor({
   const [showAddSearch, setShowAddSearch] = useState(false);
   const [addSearchQuery, setAddSearchQuery] = useState('');
   const [hasChanges, setHasChanges] = useState(false);
+  const initialGenerationAttempted = useRef(false);
   const [packStatus, setPackStatus] = useState<'draft' | 'shipped' | 'custom' | 'none'>(
     existingPack?.status || 'none'
   );
@@ -87,19 +88,8 @@ export default function QuestionPackEditor({
   const isDraft = packStatus === 'draft';
   const isPackOutdated = isOutdatedPack(packMeta);
 
-  // Generate or load pack on mount
-  useEffect(() => {
-    if (existingPack) {
-      setQuestions(existingPack.questions as ClarityQuestion[]);
-      setPackMeta(existingPack.pack_meta as PackMeta);
-      setPackStatus(existingPack.status);
-    } else if (previewResult) {
-      generatePack();
-    }
-  }, [existingPack, previewResult]);
-
   const generatePack = (preservePackId?: string) => {
-    if (!previewResult) return;
+    if (!previewResult) return null;
     const result = buildDeepDiveQuestionSet({
       intake: intakeAnswers,
       preview: previewResult,
@@ -110,7 +100,47 @@ export default function QuestionPackEditor({
     setQuestions(result.questions);
     setPackMeta(nextPackMeta);
     setHasChanges(true);
+    return { questions: result.questions, packMeta: nextPackMeta };
   };
+
+  // Generate or load pack on mount
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadOrCreatePack() {
+      if (existingPack) {
+        initialGenerationAttempted.current = true;
+        setQuestions(existingPack.questions as ClarityQuestion[]);
+        setPackMeta(existingPack.pack_meta as PackMeta);
+        setPackStatus(existingPack.status);
+        return;
+      }
+
+      if (!previewResult || initialGenerationAttempted.current) return;
+      initialGenerationAttempted.current = true;
+
+      const generated = generatePack();
+      if (!generated) return;
+
+      setSaving(true);
+      const saved = await saveQuestionPack(clientId, generated.questions, generated.packMeta, 'draft');
+      if (cancelled) return;
+      setSaving(false);
+
+      if (saved) {
+        setPackStatus('draft');
+        setHasChanges(false);
+        onPackSaved();
+      } else {
+        setPackStatus('none');
+        setHasChanges(true);
+        initialGenerationAttempted.current = false;
+      }
+    }
+
+    void loadOrCreatePack();
+    return () => { cancelled = true; };
+  }, [existingPack, previewResult, clientId, intakeAnswers, onPackSaved]);
 
   // Available questions for "Add" feature
   const currentIds = useMemo(() => new Set(questions.map(q => q.id)), [questions]);
@@ -199,7 +229,6 @@ export default function QuestionPackEditor({
     if (isShipped) return;
     const existingPackId = packMeta?.packId;
     generatePack(existingPackId);
-    setPackStatus('none');
   };
 
   const handleRegenerateDraft = async () => {

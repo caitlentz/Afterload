@@ -132,6 +132,22 @@ function questionsForModule(mod: string, track: 'A' | 'B' | 'C'): ClarityQuestio
   );
 }
 
+function scoreTrackQuestionRelevance(
+  question: ClarityQuestion,
+  selectedModules: string[],
+  primaryType: string,
+  secondaryType: string
+): number {
+  let score = 0;
+  const primaryModules = CONSTRAINT_MODULES[primaryType] ?? [];
+  const secondaryModules = CONSTRAINT_MODULES[secondaryType] ?? [];
+
+  if (selectedModules.includes(question.module)) score += 6;
+  if (primaryModules.includes(question.module)) score += 4;
+  if (secondaryModules.includes(question.module)) score += 3;
+  return score;
+}
+
 function estimateMinutes(questions: ClarityQuestion[]): number {
   const raw = questions.reduce((sum, q) => sum + (TIME_PER_TYPE[q.type] ?? 0.5), 0);
   return Math.ceil(raw);
@@ -260,7 +276,18 @@ export function buildDeepDiveQuestionSet(args: {
 
   // Cap track questions based on mode
   const trackQLimit = mode === 'SHORT' ? 2 : mode === 'STANDARD' ? 5 : 8;
-  const trackQSlice = trackQuestions.slice(0, trackQLimit);
+  const scoredTrack = trackQuestions
+    .map((q, idx) => ({
+      q,
+      idx,
+      relevance: scoreTrackQuestionRelevance(q, selectedModules, primaryType, secondaryType),
+    }))
+    .sort((a, b) => b.relevance - a.relevance || a.idx - b.idx);
+
+  const relevantTrack = scoredTrack.filter(s => s.relevance > 0).map(s => s.q);
+  const fallbackTrack = scoredTrack.filter(s => s.relevance <= 0).map(s => s.q);
+
+  const trackQSlice = [...relevantTrack, ...fallbackTrack].slice(0, trackQLimit);
 
   // ------------------------------------------------------------------
   // D) PERSONABLE LAYER — Founder Reality

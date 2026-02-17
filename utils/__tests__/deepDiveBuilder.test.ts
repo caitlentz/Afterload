@@ -89,6 +89,21 @@ function buildPreview(intake: IntakeResponse): PreviewResult {
   return runPreviewDiagnostic(intake);
 }
 
+function makeSystemCapacityPreview(): PreviewResult {
+  return {
+    primaryConstraint: {
+      type: 'structuralFragility',
+      label: 'System Fragility',
+      score: 60,
+    },
+    secondaryConstraint: {
+      type: 'capacityConstraint',
+      label: 'Capacity Constraint',
+      score: 55,
+    },
+  } as unknown as PreviewResult;
+}
+
 // ------------------------------------------------------------------
 // TESTS: QUESTION SET BUILDER
 // ------------------------------------------------------------------
@@ -388,5 +403,31 @@ describe('buildDeepDiveQuestionSet', () => {
     const included = trackAIds.filter(id => ids.has(id));
     expect(included.length).toBeGreaterThan(0);
     expect(result.packMeta.trackCount).toBeGreaterThan(0);
+  });
+
+  it('prioritizes track questions relevant to selected constraint modules', () => {
+    const intake = makeCoachingIntake(); // Track C
+    const preview = makeSystemCapacityPreview();
+    const result = buildDeepDiveQuestionSet({
+      intake,
+      preview,
+      userPrefs: { mode: 'STANDARD' },
+    });
+
+    const trackSpecific = result.questions.filter(
+      q => q.tracks.includes('C') && !q.tracks.includes('UNIVERSAL')
+    );
+
+    expect(trackSpecific.length).toBeGreaterThan(0);
+    expect(trackSpecific.some(q => q.module === 'Decision Load')).toBe(false);
+
+    const allowedModules = new Set([
+      'System Health',
+      'Financial Health',
+      'Process Heatmap',
+      'Flow Friction',
+      'Workload Analysis',
+    ]);
+    expect(trackSpecific.every(q => allowedModules.has(q.module))).toBe(true);
   });
 });

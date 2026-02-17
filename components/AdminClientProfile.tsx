@@ -17,7 +17,7 @@ import {
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
 import { runPreviewDiagnostic, PreviewResult } from '../utils/previewEngine';
 import { getPreviewEligibility } from '../utils/normalizeIntake';
-import { isOutdatedPack } from '../utils/deepDiveBuilder';
+import { isOutdatedPack, BUILDER_VERSION, QUESTION_BANK_VERSION } from '../utils/deepDiveBuilder';
 import {
   describePattern,
   describeConfidence,
@@ -129,7 +129,11 @@ export default function AdminClientProfile({
     return () => { cancelled = true; };
   }, [client.email, initialIntake?.answers]);
 
-  const packStatus = (questionPack?.status || 'none').toLowerCase();
+  const packStatus = (
+    questionPack?.status ||
+    (packLoaded && !questionPack && !!previewResult ? 'generating' : 'none')
+  ).toLowerCase();
+  const isGeneratingPack = packStatus === 'generating';
   const isDraftPack = packStatus === 'draft';
   const isShippedPack = packStatus === 'shipped';
   const packOutdated = isDraftPack && isOutdatedPack(questionPack?.pack_meta);
@@ -434,6 +438,7 @@ export default function AdminClientProfile({
                 <span className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/35">Question Pack</span>
                 <span className={`text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                   isShippedPack ? 'bg-green-100 text-green-700' :
+                  isGeneratingPack ? 'bg-blue-100 text-blue-700' :
                   isDraftPack ? 'bg-amber-100 text-amber-700' :
                   'bg-brand-dark/10 text-brand-dark/50'
                 }`}>
@@ -446,8 +451,8 @@ export default function AdminClientProfile({
                 )}
               </div>
               <div className="text-[11px] text-brand-dark/55">
-                Builder version: {questionPack?.pack_meta?.builderVersion || '—'} ·
-                Question bank version: {questionPack?.pack_meta?.questionBankVersion || '—'}
+                Builder version: {questionPack?.pack_meta?.builderVersion || (isGeneratingPack ? BUILDER_VERSION : '—')} ·
+                Question bank version: {questionPack?.pack_meta?.questionBankVersion || (isGeneratingPack ? QUESTION_BANK_VERSION : '—')}
               </div>
             </div>
             <Suspense fallback={<div className="animate-pulse h-32 bg-brand-dark/5 rounded-xl" />}>
