@@ -2,8 +2,12 @@ import { IntakeResponse } from './diagnosticEngine';
 import { normalizeIntake } from './normalizeIntake';
 import { OPT, cleanDisplay } from './intakeOptionMap';
 import type { InsightFlag } from './clarityInsightRules';
+import { scoreDimensions, rankDimensions } from './previewScoring';
+import type { DimensionScores } from './previewScoring';
 export { getPreviewEligibility } from './normalizeIntake';
 export type { PreviewEligibility } from './normalizeIntake';
+export { scoreDimensions, rankDimensions } from './previewScoring';
+export type { DimensionScores } from './previewScoring';
 
 // ------------------------------------------------------------------
 // PREVIEW ENGINE v3
@@ -18,16 +22,9 @@ export type { PreviewEligibility } from './normalizeIntake';
 // ------------------------------------------------------------------
 
 export type ConstraintDimension = {
-  type: string;   // internal key
+  type: keyof DimensionScores;   // internal key
   label: string;  // display label
   score: number;  // 0-100
-};
-
-export type DimensionScores = {
-  founderCentralization: number;
-  structuralFragility: number;
-  decisionBottleneck: number;
-  capacityConstraint: number;
 };
 
 export type PreviewMetadata = {
@@ -65,17 +62,6 @@ export type PreviewResult = {
 
   // Metadata for deepDiveBuilder consumption
   metadata: PreviewMetadata;
-};
-
-// ------------------------------------------------------------------
-// DIMENSION LABELS
-// ------------------------------------------------------------------
-
-const DIMENSION_LABELS: Record<string, string> = {
-  founderCentralization: 'Founder Dependency',
-  structuralFragility: 'System Fragility',
-  decisionBottleneck: 'Decision Bottleneck',
-  capacityConstraint: 'Capacity Constraint',
 };
 
 // ------------------------------------------------------------------
@@ -794,174 +780,6 @@ const TENSION_RULES: TensionRule[] = [
     tension: 'Decision interruptions are rare, but projects still stall on approval. The founder isn\'t being pulled in — the team is waiting for scheduled checkpoints that come too slowly.',
   },
 ];
-
-// ------------------------------------------------------------------
-// SCORING — strict equality against OPT constants
-// ------------------------------------------------------------------
-
-function scoreDimensions(data: IntakeResponse): DimensionScores {
-  const s: DimensionScores = {
-    founderCentralization: 0,
-    structuralFragility: 0,
-    decisionBottleneck: 0,
-    capacityConstraint: 0,
-  };
-
-  // Q1: business_model — light signal
-  if (data.business_model === OPT.business_model.ADVISORY) {
-    s.founderCentralization += 5;
-  }
-
-  // Q2: revenue_generation
-  if (data.revenue_generation === OPT.revenue_generation.FOUNDER_MAJORITY) {
-    s.founderCentralization += 25; s.capacityConstraint += 15;
-  } else if (data.revenue_generation === OPT.revenue_generation.TEAM_REVIEWS) {
-    s.founderCentralization += 12; s.decisionBottleneck += 8;
-  } else if (data.revenue_generation === OPT.revenue_generation.MIX) {
-    s.founderCentralization += 10; s.capacityConstraint += 5;
-  }
-
-  // Q3: two_week_absence
-  if (data.two_week_absence === OPT.two_week_absence.REVENUE_DROPS) {
-    s.founderCentralization += 25; s.structuralFragility += 20;
-  } else if (data.two_week_absence === OPT.two_week_absence.WORK_SLOWS) {
-    s.founderCentralization += 15; s.structuralFragility += 10;
-  } else if (data.two_week_absence === OPT.two_week_absence.ESCALATES) {
-    s.decisionBottleneck += 12;
-  }
-
-  // Q4: final_decisions
-  if (data.final_decisions === OPT.final_decisions.ALWAYS_ME) {
-    s.decisionBottleneck += 25; s.founderCentralization += 10;
-  } else if (data.final_decisions === OPT.final_decisions.MOSTLY_ME) {
-    s.decisionBottleneck += 15; s.founderCentralization += 5;
-  } else if (data.final_decisions === OPT.final_decisions.SHARED) {
-    s.decisionBottleneck += 5;
-  }
-
-  // Q5: project_stall
-  if (data.project_stall === OPT.project_stall.APPROVAL) {
-    s.decisionBottleneck += 20;
-  } else if (data.project_stall === OPT.project_stall.TEAM_EXECUTION) {
-    s.capacityConstraint += 10; s.structuralFragility += 5;
-  } else if (data.project_stall === OPT.project_stall.STAFFING) {
-    s.capacityConstraint += 15;
-  }
-
-  // Q6: growth_limiter
-  if (data.growth_limiter === OPT.growth_limiter.TIME) {
-    s.capacityConstraint += 20; s.founderCentralization += 10;
-  } else if (data.growth_limiter === OPT.growth_limiter.STAFF) {
-    s.capacityConstraint += 20;
-  } else if (data.growth_limiter === OPT.growth_limiter.OPS) {
-    s.structuralFragility += 15; s.capacityConstraint += 5;
-  } else if (data.growth_limiter === OPT.growth_limiter.PRICING) {
-    s.capacityConstraint += 10;
-  } else if (data.growth_limiter === OPT.growth_limiter.DEMAND) {
-    s.capacityConstraint += 8;
-  }
-
-  // Q7: process_documentation
-  if (data.process_documentation === OPT.process_documentation.IN_HEAD) {
-    s.structuralFragility += 25; s.founderCentralization += 10;
-  } else if (data.process_documentation === OPT.process_documentation.LIGHT) {
-    s.structuralFragility += 12;
-  } else if (data.process_documentation === OPT.process_documentation.NOT_USED) {
-    s.structuralFragility += 15; s.decisionBottleneck += 5;
-  }
-
-  // Q8: roles_handled
-  if (data.roles_handled === OPT.roles_handled.SEVEN_PLUS) {
-    s.founderCentralization += 15; s.structuralFragility += 10; s.capacityConstraint += 10;
-  } else if (data.roles_handled === OPT.roles_handled.FIVE_SIX) {
-    s.founderCentralization += 10; s.capacityConstraint += 8;
-  } else if (data.roles_handled === OPT.roles_handled.THREE_FOUR) {
-    s.founderCentralization += 5;
-  }
-
-  // Q9: client_relationship
-  if (data.client_relationship === OPT.client_relationship.HIRE_ME) {
-    s.founderCentralization += 20;
-  } else if (data.client_relationship === OPT.client_relationship.EXPECT_ME) {
-    s.founderCentralization += 12;
-  }
-
-  // Q10: key_member_leaves
-  if (data.key_member_leaves === OPT.key_member_leaves.REVENUE_DROPS) {
-    s.structuralFragility += 20; s.capacityConstraint += 10;
-  } else if (data.key_member_leaves === OPT.key_member_leaves.DELIVERY_SLOWS) {
-    s.structuralFragility += 12;
-  } else if (data.key_member_leaves === OPT.key_member_leaves.TEMPORARY) {
-    s.structuralFragility += 5;
-  }
-
-  // Q11: pricing_decisions
-  if (data.pricing_decisions === OPT.pricing_decisions.ONLY_ME) {
-    s.decisionBottleneck += 10; s.founderCentralization += 8;
-  } else if (data.pricing_decisions === OPT.pricing_decisions.I_APPROVE) {
-    s.decisionBottleneck += 5;
-  }
-
-  // Q12: interruption_frequency
-  if (data.interruption_frequency === OPT.interruption_frequency.CONSTANTLY) {
-    s.decisionBottleneck += 20; s.capacityConstraint += 10;
-  } else if (data.interruption_frequency === OPT.interruption_frequency.MULTIPLE_DAILY) {
-    s.decisionBottleneck += 12; s.capacityConstraint += 5;
-  } else if (data.interruption_frequency === OPT.interruption_frequency.FEW_WEEKLY) {
-    s.decisionBottleneck += 4;
-  }
-
-  // Q13: hiring_situation
-  if (data.hiring_situation === OPT.hiring_situation.HARD_TO_FIND) {
-    s.capacityConstraint += 15;
-  } else if (data.hiring_situation === OPT.hiring_situation.OCCASIONALLY) {
-    s.capacityConstraint += 5;
-  }
-
-  // Q14: free_capacity (signal for what's most constrained)
-  if (data.free_capacity === OPT.free_capacity.DELEGATE_APPROVALS) {
-    s.decisionBottleneck += 8;
-  } else if (data.free_capacity === OPT.free_capacity.HIRE) {
-    s.capacityConstraint += 8;
-  } else if (data.free_capacity === OPT.free_capacity.SYSTEMS) {
-    s.structuralFragility += 8;
-  } else if (data.free_capacity === OPT.free_capacity.RAISE_PRICES) {
-    s.capacityConstraint += 5;
-  } else if (data.free_capacity === OPT.free_capacity.REDUCE_CLIENTS) {
-    s.founderCentralization += 5; s.capacityConstraint += 5;
-  }
-
-  // Q15: current_state
-  if (data.current_state === OPT.current_state.CHAOTIC) {
-    s.structuralFragility += 15; s.capacityConstraint += 10;
-  } else if (data.current_state === OPT.current_state.GROWING_STRAINED) {
-    s.capacityConstraint += 12;
-  } else if (data.current_state === OPT.current_state.STABLE_CAPPED) {
-    s.capacityConstraint += 10; s.structuralFragility += 5;
-  } else if (data.current_state === OPT.current_state.PROFITABLE_HEAVY) {
-    s.founderCentralization += 15;
-  }
-
-  // Clamp all to 100
-  s.founderCentralization = Math.min(100, s.founderCentralization);
-  s.structuralFragility = Math.min(100, s.structuralFragility);
-  s.decisionBottleneck = Math.min(100, s.decisionBottleneck);
-  s.capacityConstraint = Math.min(100, s.capacityConstraint);
-
-  return s;
-}
-
-// ------------------------------------------------------------------
-// RANK DIMENSIONS → primary + secondary
-// ------------------------------------------------------------------
-function rankDimensions(scores: DimensionScores): ConstraintDimension[] {
-  const entries = (Object.keys(scores) as (keyof DimensionScores)[]).map(key => ({
-    type: key,
-    label: DIMENSION_LABELS[key],
-    score: scores[key],
-  }));
-  return entries.sort((a, b) => b.score - a.score);
-}
 
 // ------------------------------------------------------------------
 // SECTION GENERATORS — all use strict equality

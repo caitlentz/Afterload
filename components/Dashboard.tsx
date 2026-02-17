@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useRef, useEffect, useMemo, lazy, Suspense } from 'react';
 import {
   ArrowRight,
   LogOut,
@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import type { IntakeResponse, DiagnosticResult } from '../utils/diagnosticEngine';
 import type { PaymentStatus } from '../utils/database';
+import { getPreviewEligibility } from '../utils/normalizeIntake';
 
 const Intake = lazy(() => import('./Intake'));
 
@@ -150,6 +151,10 @@ export default function Dashboard({
   const businessName = intakeData?.businessName || null;
   const firstName = intakeData?.firstName || userEmail.split('@')[0];
   const hasInitialIntake = intakeData && Object.keys(intakeData).length > 3;
+  const previewEligibility = useMemo(
+    () => (intakeData ? getPreviewEligibility(intakeData) : null),
+    [intakeData]
+  );
 
   // Determine journey stage
   type Stage = 'fresh' | 'preview_ready' | 'deep_complete' | 'paid';
@@ -645,6 +650,50 @@ export default function Dashboard({
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {previewEligibility && (
+          <div className="mb-8 animate-[fadeInUp_0.6s_ease-out_0.33s_both]">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
+              Operational Pattern
+            </div>
+            <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-white/70 p-5 space-y-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                <div className="bg-white/60 rounded-xl p-3 border border-white/70">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Pattern</div>
+                  <div className="text-sm font-serif text-brand-dark">{previewEligibility.metadata.pattern}</div>
+                </div>
+                <div className="bg-white/60 rounded-xl p-3 border border-white/70">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Confidence</div>
+                  <div className="text-sm font-serif text-brand-dark">{previewEligibility.metadata.confidence}</div>
+                </div>
+                <div className="bg-white/60 rounded-xl p-3 border border-white/70 col-span-2 md:col-span-1">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Founder Dependency</div>
+                  <div className="text-sm font-serif text-brand-dark">{previewEligibility.metadata.founderDependencyScore}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="bg-red-50/50 rounded-xl p-3 border border-red-100/60">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-red-500 mb-1">Primary Constraint</div>
+                  <div className="text-sm text-brand-dark font-medium">{previewEligibility.metadata.primaryConstraint.label}</div>
+                  <div className="text-[10px] text-brand-dark/40">
+                    {previewEligibility.metadata.primaryConstraint.type} ({previewEligibility.metadata.primaryConstraint.score})
+                  </div>
+                </div>
+                <div className="bg-amber-50/50 rounded-xl p-3 border border-amber-100/60">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-amber-500 mb-1">Secondary Constraint</div>
+                  <div className="text-sm text-brand-dark font-medium">{previewEligibility.metadata.secondaryConstraint.label}</div>
+                  <div className="text-[10px] text-brand-dark/40">
+                    {previewEligibility.metadata.secondaryConstraint.type} ({previewEligibility.metadata.secondaryConstraint.score})
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-1">Rationale</div>
+                <p className="text-xs text-brand-dark/55 font-lora">{previewEligibility.metadata.rationale}</p>
+              </div>
             </div>
           </div>
         )}

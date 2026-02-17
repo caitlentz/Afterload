@@ -4,6 +4,7 @@ import {
   Search, DollarSign, Filter, RefreshCw, X
 } from 'lucide-react';
 import { fetchAllClients, fetchAllPayments } from '../utils/database';
+import { getPreviewEligibility } from '../utils/normalizeIntake';
 import {
   ClientData, PaymentRecord, ClientStage, STAGE_CONFIG,
   getClientStage, getBusinessInfo, formatDate, formatCents
@@ -279,6 +280,7 @@ export default function AdminView() {
               const latestIntake = [...(client.intake_responses || [])]
                 .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
               const answers = latestIntake?.answers || {};
+              const previewEligibility = latestIntake?.answers ? getPreviewEligibility(latestIntake.answers) : null;
               const clientPayments = payments.filter(p => p.email?.toLowerCase() === client.email?.toLowerCase() && p.status === 'succeeded');
               const stage = client.stage;
               const stageInfo = STAGE_CONFIG[stage];
@@ -331,6 +333,28 @@ export default function AdminView() {
                       <ChevronRight size={16} className="text-brand-dark/20" />
                     </div>
                   </div>
+                  {previewEligibility && (
+                    <div className="mt-3 pt-3 border-t border-brand-dark/5 space-y-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-dark/10 text-brand-dark/50">
+                          Pattern {previewEligibility.metadata.pattern}
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-dark/10 text-brand-dark/50">
+                          Confidence {previewEligibility.metadata.confidence}
+                        </span>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-brand-dark/10 text-brand-dark/50">
+                          Founder {previewEligibility.metadata.founderDependencyScore}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-brand-dark/55">
+                        Primary: {previewEligibility.metadata.primaryConstraint.label} ({previewEligibility.metadata.primaryConstraint.score}) ·
+                        Secondary: {previewEligibility.metadata.secondaryConstraint.label} ({previewEligibility.metadata.secondaryConstraint.score})
+                      </div>
+                      <div className="text-[11px] text-brand-dark/45 font-lora">
+                        {previewEligibility.metadata.rationale}
+                      </div>
+                    </div>
+                  )}
                 </button>
               );
             })}

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getPreviewEligibility } from '../normalizeIntake';
 import { OPT } from '../intakeOptionMap';
 import type { IntakeResponse } from '../diagnosticEngine';
+import { rankDimensions, scoreDimensions } from '../previewScoring';
 
 function makeIntake(overrides: Partial<IntakeResponse> = {}): IntakeResponse {
   return {
@@ -30,7 +31,7 @@ describe('getPreviewEligibility operational pattern labeling', () => {
     }));
 
     expect(result.metadata.primaryConstraint.type).toBe('founderCentralization');
-    expect(result.metadata.pattern).toBe('FOUNDER_HEAVY');
+    expect(result.metadata.pattern).toBe('FOUNDER');
   });
 
   it('overrides to MIXED when top two constraints are within 10 points', () => {
@@ -97,5 +98,32 @@ describe('getPreviewEligibility operational pattern labeling', () => {
     expect(result.metadata.secondaryConstraint.score).toBe(0);
     expect(result.metadata.pattern).toBe('MIXED');
     expect(result.metadata.confidence).toBe('LOW');
+  });
+
+  it('uses shared preview scorer/ranker outputs for constraints', () => {
+    const intake = makeIntake({
+      growth_limiter: OPT.growth_limiter.STAFF,
+      final_decisions: OPT.final_decisions.ALWAYS_ME,
+      project_stall: OPT.project_stall.APPROVAL,
+      process_documentation: OPT.process_documentation.LIGHT,
+    });
+    const result = getPreviewEligibility(intake);
+    const ranked = rankDimensions(scoreDimensions(intake));
+
+    expect(result.metadata.primaryConstraint).toEqual(ranked[0]);
+    expect(result.metadata.secondaryConstraint).toEqual(ranked[1]);
+  });
+
+  it('rationale includes primary label, secondary label, pattern, and confidence', () => {
+    const result = getPreviewEligibility(makeIntake({
+      final_decisions: OPT.final_decisions.ALWAYS_ME,
+      project_stall: OPT.project_stall.APPROVAL,
+      growth_limiter: OPT.growth_limiter.STAFF,
+    }));
+
+    expect(result.metadata.rationale).toContain(result.metadata.primaryConstraint.label);
+    expect(result.metadata.rationale).toContain(result.metadata.secondaryConstraint.label);
+    expect(result.metadata.rationale).toContain(`Pattern: ${result.metadata.pattern}`);
+    expect(result.metadata.rationale).toContain(`confidence=${result.metadata.confidence}`);
   });
 });

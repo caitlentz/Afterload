@@ -16,6 +16,7 @@ import {
 } from '../utils/database';
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
 import { runPreviewDiagnostic, PreviewResult } from '../utils/previewEngine';
+import { getPreviewEligibility } from '../utils/normalizeIntake';
 
 const ReportEditor = lazy(() => import('./ReportEditor'));
 const QuestionPackEditor = lazy(() => import('./QuestionPackEditor'));
@@ -68,6 +69,7 @@ export default function AdminClientProfile({
       return null;
     }
   })();
+  const previewEligibility = initialIntake?.answers ? getPreviewEligibility(initialIntake.answers) : null;
 
   // Run full diagnostic from deep intake
   const fullReport = (() => {
@@ -259,6 +261,36 @@ export default function AdminClientProfile({
                 <div className="text-[10px] text-brand-dark/40 mt-0.5">{previewResult.secondaryConstraint.type}</div>
               </div>
             </div>
+
+            {previewEligibility && (
+              <div className="bg-brand-dark/[0.03] rounded-lg p-3 border border-brand-dark/10 space-y-2">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/35">Operational Pattern Metadata</div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  <div className="text-xs text-brand-dark/60">
+                    Pattern: <span className="font-medium text-brand-dark">{previewEligibility.metadata.pattern}</span>
+                  </div>
+                  <div className="text-xs text-brand-dark/60">
+                    Confidence: <span className="font-medium text-brand-dark">{previewEligibility.metadata.confidence}</span>
+                  </div>
+                  <div className="text-xs text-brand-dark/60">
+                    Founder score: <span className="font-medium text-brand-dark">{previewEligibility.metadata.founderDependencyScore}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="text-xs text-brand-dark/60">
+                    Primary: <span className="font-medium text-brand-dark">{previewEligibility.metadata.primaryConstraint.label}</span>
+                    <span className="text-brand-dark/40"> ({previewEligibility.metadata.primaryConstraint.type}, {previewEligibility.metadata.primaryConstraint.score})</span>
+                  </div>
+                  <div className="text-xs text-brand-dark/60">
+                    Secondary: <span className="font-medium text-brand-dark">{previewEligibility.metadata.secondaryConstraint.label}</span>
+                    <span className="text-brand-dark/40"> ({previewEligibility.metadata.secondaryConstraint.type}, {previewEligibility.metadata.secondaryConstraint.score})</span>
+                  </div>
+                </div>
+                <p className="text-xs text-brand-dark/50 font-lora leading-relaxed">
+                  {previewEligibility.metadata.rationale}
+                </p>
+              </div>
+            )}
 
             {/* Snapshot */}
             <div>
