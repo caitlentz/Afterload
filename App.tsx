@@ -629,6 +629,7 @@ export default function App() {
               <Dashboard
                   userEmail={userEmail}
                   intakeData={intakeData}
+                  previewResult={previewResult}
                   diagnosticResult={null}
                   paymentStatus={paymentStatus}
                   questionPackStatus={questionPackStatus}
