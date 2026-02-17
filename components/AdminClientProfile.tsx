@@ -707,6 +707,11 @@ export default function AdminClientProfile({
                           <Shield size={12} className="text-purple-500" />
                           <span className="text-purple-700 font-medium">{note.note.replace('[report-released] ', '')}</span>
                         </span>
+                      ) : note.note.startsWith('[clarity-request]') ? (
+                        <span className="flex items-center gap-2">
+                          <ArrowRight size={12} className="text-blue-500" />
+                          <span className="text-blue-700 font-medium">{note.note.replace('[clarity-request] ', '')}</span>
+                        </span>
                       ) : (
                         note.note
                       )}

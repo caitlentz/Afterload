@@ -412,6 +412,48 @@ export default function App() {
     navigate(View.DIAGNOSTIC_PREVIEW);
   };
 
+  const handleCreateClarityQuestionnaire = async () => {
+    const email = intakeData?.email || userEmail;
+
+    if (email) {
+      const normalizedEmail = email.trim().toLowerCase();
+      const signalKey = `afterload_clarity_request_${normalizedEmail}`;
+
+      if (!localStorage.getItem(signalKey)) {
+        try {
+          const [{ signalClarityQuestionnaireRequest }, { supabase }] = await Promise.all([
+            import('./utils/database'),
+            import('./utils/supabase'),
+          ]);
+
+          await signalClarityQuestionnaireRequest(normalizedEmail, {
+            firstName: intakeData?.firstName,
+            businessName: intakeData?.businessName,
+            website: intakeData?.website,
+          });
+
+          // Optional lightweight alert channel for admin inbox integrations.
+          void supabase.functions.invoke('notify-submission', {
+            body: {
+              email: normalizedEmail,
+              mode: 'clarity-request',
+              clientName: intakeData?.firstName || null,
+              businessName: intakeData?.businessName || null,
+            },
+          }).catch((notifyError) => {
+            console.error('clarity-request notify error:', notifyError);
+          });
+
+          localStorage.setItem(signalKey, new Date().toISOString());
+        } catch (e) {
+          console.error('handleCreateClarityQuestionnaire error:', e);
+        }
+      }
+    }
+
+    navigate(View.CLARITY_SESSION);
+  };
+
   const handleInitialIntakeComplete = async (answers: IntakeResponse, password?: string) => {
     const { runPreviewDiagnostic } = await import('./utils/previewEngine');
     const preview = runPreviewDiagnostic(answers);
@@ -645,7 +687,11 @@ export default function App() {
             )}
 
             {activeView === View.DIAGNOSTIC_PREVIEW && (
-              <DiagnosticPreview preview={previewResult} onHome={() => navigate(View.HOME)} onUnlock={() => navigate(View.CLARITY_SESSION)} />
+              <DiagnosticPreview
+                preview={previewResult}
+                onHome={() => navigate(View.HOME)}
+                onUnlock={handleCreateClarityQuestionnaire}
+              />
             )}
             {activeView === View.PAYMENT && (
               <PaymentGate

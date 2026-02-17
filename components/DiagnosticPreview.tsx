@@ -4,12 +4,24 @@ import { PreviewResult } from '../utils/previewEngine';
 
 interface DiagnosticProps {
   onHome: () => void;
-  onUnlock: () => void;
+  onUnlock: () => void | Promise<void>;
   preview: PreviewResult | null;
   key?: React.Key;
 }
 
 export default function DiagnosticPreview({ onHome, onUnlock, preview }: DiagnosticProps) {
+  const [requesting, setRequesting] = React.useState(false);
+
+  const handleCreateQuestionnaire = async () => {
+    if (requesting) return;
+    setRequesting(true);
+    try {
+      await onUnlock();
+    } finally {
+      setRequesting(false);
+    }
+  };
+
   if (!preview) {
     return (
       <div className="min-h-screen w-full flex items-center justify-center px-6">
@@ -247,13 +259,14 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
             </div>
             <div className="flex flex-col items-center gap-4">
               <button
-                onClick={onUnlock}
-                className="px-10 py-4 bg-brand-dark text-white rounded-full font-bold uppercase tracking-widest text-xs hover:bg-brand-dark/80 transition-all shadow-lg hover:shadow-xl flex items-center gap-2"
+                onClick={handleCreateQuestionnaire}
+                disabled={requesting}
+                className="px-10 py-4 bg-brand-dark text-white rounded-full font-bold uppercase tracking-widest text-xs hover:bg-brand-dark/80 transition-all shadow-lg hover:shadow-xl flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Continue to Deep Dive <ArrowRight size={14} />
+                {requesting ? 'Sending Request...' : 'Create My Clarity Questionnaire'} <ArrowRight size={14} />
               </button>
               <p className="text-[10px] text-brand-dark/30 max-w-xs">
-                25 targeted questions · about 10 minutes · payment comes only after completion.
+                We’ll notify admin you want to continue, then take you into the clarity session.
               </p>
             </div>
           </div>

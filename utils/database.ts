@@ -127,6 +127,39 @@ export async function saveAdminNote(clientId: string, note: string) {
 }
 
 // ------------------------------------------------------------------
+// SIGNAL CLARITY QUESTIONNAIRE REQUEST
+// Saves an admin-visible tagged note when a client asks to continue.
+// ------------------------------------------------------------------
+export async function signalClarityQuestionnaireRequest(
+  email: string,
+  context?: { firstName?: string; businessName?: string; website?: string }
+) {
+  const normalizedEmail = email.trim().toLowerCase();
+  if (!normalizedEmail) return false;
+
+  // Ensure client row exists so note can attach to client_id.
+  await saveClient(normalizedEmail, {
+    firstName: context?.firstName,
+    businessName: context?.businessName,
+    website: context?.website,
+  });
+
+  const { data: client, error: clientError } = await supabase
+    .from('clients')
+    .select('id')
+    .eq('email', normalizedEmail)
+    .single();
+
+  if (clientError || !client?.id) {
+    console.error('signalClarityQuestionnaireRequest client lookup error:', clientError);
+    return false;
+  }
+
+  const message = `Client requested to continue with clarity questionnaire (${normalizedEmail}) on ${new Date().toLocaleString()}.`;
+  return saveAdminTaggedNote(client.id, message, 'clarity-request');
+}
+
+// ------------------------------------------------------------------
 // PAYMENT STATUS
 // Checks the payments table for this user's deposit & balance status.
 // Returns { depositPaid, balancePaid, depositDate, balanceDate }
