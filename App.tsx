@@ -105,6 +105,12 @@ export default function App() {
 
   const [questionPackStatus, setQuestionPackStatus] = useState<'none' | 'draft' | 'shipped'>('none');
 
+  const rankQuestionPackStatus = (status: 'none' | 'draft' | 'shipped') => {
+    if (status === 'shipped') return 2;
+    if (status === 'draft') return 1;
+    return 0;
+  };
+
   // TEMPORARY: Paywall disabled — treat everyone as paid
   const [paymentStatus, setPaymentStatus] = useState<PaymentStatus>({
     depositPaid: true,
@@ -118,13 +124,66 @@ export default function App() {
   // Clear chunk reload flag on successful mount
   useEffect(() => { sessionStorage.removeItem('afterload_chunk_reload'); }, []);
 
-  // Fetch question pack status when user email is available
+  // Fetch question pack status when user/intake email is available.
+  // Uses both sources so auth-email mismatch doesn't hide shipped packs.
   useEffect(() => {
-    if (!userEmail) return;
-    import('./utils/database').then(({ fetchQuestionPackStatus }) =>
-      fetchQuestionPackStatus(userEmail).then(setQuestionPackStatus)
-    );
-  }, [userEmail]);
+    const intakeEmail = intakeData?.email;
+    const candidateEmails = [userEmail, intakeEmail]
+      .filter((v): v is string => !!v)
+      .map(v => v.trim().toLowerCase())
+      .filter((v, i, arr) => arr.indexOf(v) === i);
+
+    if (candidateEmails.length === 0) return;
+
+    let cancelled = false;
+
+    const refreshQuestionPackStatus = async () => {
+      const { fetchQuestionPackStatus } = await import('./utils/database');
+      let best: 'none' | 'draft' | 'shipped' = 'none';
+      for (const email of candidateEmails) {
+        const status = await fetchQuestionPackStatus(email);
+        if (rankQuestionPackStatus(status) > rankQuestionPackStatus(best)) {
+          best = status;
+        }
+        if (best === 'shipped') break;
+      }
+      if (!cancelled) setQuestionPackStatus(best);
+    };
+
+    refreshQuestionPackStatus();
+    const intervalId = window.setInterval(refreshQuestionPackStatus, 15000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+    };
+  }, [userEmail, intakeData?.email]);
+
+  // Recover intake data for returning users (new device/session).
+  useEffect(() => {
+    if (!userEmail || intakeData) return;
+
+    let cancelled = false;
+
+    const recoverIntake = async () => {
+      const { fetchIntakeByEmail } = await import('./utils/database');
+      const recovered = await fetchIntakeByEmail(userEmail);
+      if (!recovered || cancelled) return;
+
+      setIntakeData(recovered as IntakeResponse);
+      try {
+        const { runPreviewDiagnostic } = await import('./utils/previewEngine');
+        if (!cancelled) setPreviewResult(runPreviewDiagnostic(recovered as IntakeResponse));
+      } catch (e) {
+        console.error('recoverIntake preview error:', e);
+      }
+    };
+
+    recoverIntake();
+    return () => {
+      cancelled = true;
+    };
+  }, [userEmail, intakeData]);
 
   // Helper: fetch payment status for a given email
   // TEMPORARY: Paywall disabled — always return paid
@@ -570,7 +629,12 @@ export default function App() {
               />
             )}
             {activeView === View.CLARITY_SESSION && (
-              <Intake mode="deep" initialDataMissing={!intakeData} onComplete={handleDeepIntakeComplete} />
+              <Intake
+                mode="deep"
+                initialDataMissing={!intakeData}
+                userEmail={userEmail}
+                onComplete={handleDeepIntakeComplete}
+              />
             )}
             {activeView === View.SUCCESS && (
               <SuccessScreen

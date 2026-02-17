@@ -292,8 +292,9 @@ export async function fetchQuestionPack(clientId: string): Promise<QuestionPack 
 }
 
 export async function fetchQuestionPackStatus(email: string): Promise<'none' | 'draft' | 'shipped'> {
+  const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.rpc('get_question_pack_status', {
-    p_email: email.toLowerCase(),
+    p_email: normalizedEmail,
   });
   if (error) {
     console.error('fetchQuestionPackStatus error:', error);
@@ -306,8 +307,9 @@ export async function fetchQuestionPackStatus(email: string): Promise<'none' | '
 }
 
 export async function fetchShippedQuestionPack(email: string): Promise<QuestionPack | null> {
+  const normalizedEmail = email.trim().toLowerCase();
   const { data, error } = await supabase.rpc('get_shipped_question_pack', {
-    p_email: email.toLowerCase(),
+    p_email: normalizedEmail,
   });
   if (error) {
     console.error('fetchShippedQuestionPack error:', error);
@@ -371,9 +373,10 @@ export async function getPaymentStatus(email: string): Promise<PaymentStatus> {
 // Uses SECURITY DEFINER RPC to bypass RLS on intake_responses.
 // ------------------------------------------------------------------
 export async function fetchIntakeByEmail(email: string): Promise<IntakeResponse | null> {
+  const normalizedEmail = email.trim().toLowerCase();
   try {
     const { data, error } = await supabase.rpc('fetch_intake_by_email', {
-      p_email: email.toLowerCase(),
+      p_email: normalizedEmail,
     });
     if (error) {
       console.error('fetchIntakeByEmail RPC error:', error);

@@ -96,33 +96,69 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
   const [showRecoveryForm, setShowRecoveryForm] = useState(initialDataMissing && mode === 'deep');
 
   useEffect(() => {
-    if (mode === 'deep') {
+    let cancelled = false;
+
+    async function loadQuestions() {
+      if (mode === 'deep') {
         const savedIntake = localStorage.getItem('afterload_intake');
         const intakeData = savedIntake ? JSON.parse(savedIntake) : null;
-        
-        if (!intakeData && initialDataMissing) {
+        const lookupEmail = (userEmail || intakeData?.email || '').trim().toLowerCase();
+
+        if (lookupEmail) {
+          try {
+            const { fetchShippedQuestionPack } = await import('../utils/database');
+            const shippedPack = await fetchShippedQuestionPack(lookupEmail);
+            if (!cancelled && shippedPack?.questions?.length) {
+              setShowRecoveryForm(false);
+              setClarityQuestions(shippedPack.questions as ClarityQuestion[]);
+            } else if (!cancelled) {
+              if (!intakeData && initialDataMissing) {
+                setShowRecoveryForm(true);
+                setClarityQuestions([]);
+              } else {
+                setShowRecoveryForm(false);
+                const track = determineClarityTrack(intakeData);
+                const filtered = CLARITY_SESSION_QUESTIONS.filter(q =>
+                  q.tracks.includes('UNIVERSAL') || q.tracks.includes(track)
+                );
+                setClarityQuestions(filtered);
+              }
+            }
+          } catch (e) {
+            console.error('Error loading shipped question pack:', e);
+          }
+        } else if (!cancelled) {
+          if (!intakeData && initialDataMissing) {
             setShowRecoveryForm(true);
-        } else {
+            setClarityQuestions([]);
+          } else {
             setShowRecoveryForm(false);
             const track = determineClarityTrack(intakeData);
             const filtered = CLARITY_SESSION_QUESTIONS.filter(q =>
-                q.tracks.includes('UNIVERSAL') || q.tracks.includes(track)
+              q.tracks.includes('UNIVERSAL') || q.tracks.includes(track)
             );
             setClarityQuestions(filtered);
+          }
         }
-    }
-    
-    // Recovery logic...
-    const savedProgress = localStorage.getItem(STORAGE_KEY);
-    if (savedProgress) {
+      }
+
+      // Recovery logic...
+      const savedProgress = localStorage.getItem(STORAGE_KEY);
+      if (savedProgress) {
         try {
-            const parsed = JSON.parse(savedProgress);
-            if (parsed && (Object.keys(parsed.answers || {}).length > 0 || parsed.step > 0)) {
-                setCanRestore(true);
-            }
-        } catch (e) { console.error("Error checking saved session", e); }
+          const parsed = JSON.parse(savedProgress);
+          if (parsed && (Object.keys(parsed.answers || {}).length > 0 || parsed.step > 0)) {
+            setCanRestore(true);
+          }
+        } catch (e) {
+          console.error("Error checking saved session", e);
+        }
+      }
     }
-  }, [mode, initialDataMissing, STORAGE_KEY]);
+
+    loadQuestions();
+    return () => { cancelled = true; };
+  }, [mode, initialDataMissing, STORAGE_KEY, userEmail]);
   
   // Save progress effect...
   useEffect(() => {
