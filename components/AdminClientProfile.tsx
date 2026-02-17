@@ -59,13 +59,14 @@ export default function AdminClientProfile({
   // Fallback to latest intake if mode tags are missing/legacy so admin can still review and route.
   const initialIntake = explicitInitialIntake || latestIntake;
   const usedInitialFallback = !!latestIntake && !explicitInitialIntake;
+  const hasAnyIntake = !!latestIntake;
   const deepIntake = client.intake_responses?.find(r => r.mode === 'deep');
   const hasClaritySession = !!deepIntake;
   const answers = latestIntake?.answers || {};
   const biz = getBusinessInfo(answers);
 
   // Run preview diagnostic from initial intake
-  const previewResult: PreviewResult | null = (() => {
+  const previewFromInitial: PreviewResult | null = (() => {
     if (!initialIntake?.answers) return null;
     try {
       return runPreviewDiagnostic(initialIntake.answers);
@@ -74,6 +75,8 @@ export default function AdminClientProfile({
       return null;
     }
   })();
+  const storedPreviewResult = client.diagnostic_results?.find((r: any) => r.result_type === 'preview')?.report as PreviewResult | null;
+  const previewResult: PreviewResult | null = previewFromInitial || storedPreviewResult || null;
   const previewEligibility = initialIntake?.answers ? getPreviewEligibility(initialIntake.answers) : null;
 
   // Run full diagnostic from deep intake
@@ -225,6 +228,20 @@ export default function AdminClientProfile({
           </div>
         </div>
 
+        {!hasAnyIntake && (
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-5 animate-[fadeInUp_0.4s_ease-out_0.08s_both]">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-amber-800 mb-2">No Intake Responses Found</div>
+            <p className="text-sm text-amber-900/80 mb-3">
+              This client exists, but no initial intake answers are attached yet. Preview/routing fields are unavailable until an intake is saved.
+            </p>
+            <div className="text-xs text-amber-900/70 space-y-1">
+              <div>Check: client used the same email during intake and account creation.</div>
+              <div>Check: `saveIntakeResponse` completed without DB/RPC errors.</div>
+              <div>If needed, have the client resubmit the mini intake to attach answers.</div>
+            </div>
+          </div>
+        )}
+
         {/* ─── Payment History ─── */}
         {clientPayments.length > 0 && (
           <div className="animate-[fadeInUp_0.4s_ease-out_0.1s_both]">
@@ -347,7 +364,7 @@ export default function AdminClientProfile({
         )}
 
         {/* ─── Question Pack Editor ─── */}
-        {initialIntake && packLoaded && (
+        {packLoaded && (initialIntake || questionPack) && (
           <div className="bg-white/50 backdrop-blur-md rounded-xl border border-white/60 p-5 animate-[fadeInUp_0.4s_ease-out_0.2s_both]">
             {usedInitialFallback && (
               <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
@@ -382,7 +399,7 @@ export default function AdminClientProfile({
               <QuestionPackEditor
                 clientId={client.id}
                 clientEmail={client.email}
-                intakeAnswers={initialIntake.answers}
+                intakeAnswers={(initialIntake?.answers || {}) as IntakeResponse}
                 previewResult={previewResult}
                 existingPack={questionPack}
                 onPackSaved={loadQuestionPack}
