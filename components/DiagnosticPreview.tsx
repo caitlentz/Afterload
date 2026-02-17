@@ -10,7 +10,24 @@ interface DiagnosticProps {
 }
 
 export default function DiagnosticPreview({ onHome, onUnlock, preview }: DiagnosticProps) {
-  if (!preview) return null;
+  if (!preview) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center px-6">
+        <div className="max-w-md w-full bg-white/70 backdrop-blur-xl rounded-3xl border border-white/80 p-8 text-center">
+          <h2 className="font-serif text-2xl text-brand-dark mb-2">Building your mini report</h2>
+          <p className="text-sm text-brand-dark/50 font-lora mb-6">
+            Your preview is being generated. If this takes more than a few seconds, go back and reopen it.
+          </p>
+          <button
+            onClick={onHome}
+            className="px-6 py-3 rounded-full bg-brand-dark text-white text-xs font-bold uppercase tracking-widest hover:bg-brand-deep transition-colors"
+          >
+            Back
+          </button>
+        </div>
+      </div>
+    );
+  }
   const score = preview.founderDependencyScore ?? 0;
   const level = preview.founderDependencyLevel ?? 'LOW';
   const markerColor =

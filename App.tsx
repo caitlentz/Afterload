@@ -104,6 +104,7 @@ export default function App() {
   });
 
   const [questionPackStatus, setQuestionPackStatus] = useState<'none' | 'draft' | 'shipped'>('none');
+  const [skipAutoRecovery, setSkipAutoRecovery] = useState(false);
 
   const rankQuestionPackStatus = (status: 'none' | 'draft' | 'shipped') => {
     if (status === 'shipped') return 2;
@@ -161,7 +162,7 @@ export default function App() {
 
   // Recover intake data for returning users (new device/session).
   useEffect(() => {
-    if (!userEmail || intakeData) return;
+    if (!userEmail || intakeData || skipAutoRecovery) return;
 
     let cancelled = false;
 
@@ -183,7 +184,23 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [userEmail, intakeData]);
+  }, [userEmail, intakeData, skipAutoRecovery]);
+
+  // Ensure preview is always available whenever intake data exists.
+  useEffect(() => {
+    if (!intakeData || previewResult) return;
+
+    let cancelled = false;
+    import('./utils/previewEngine')
+      .then(({ runPreviewDiagnostic }) => {
+        if (!cancelled) setPreviewResult(runPreviewDiagnostic(intakeData));
+      })
+      .catch((e) => {
+        console.error('preview regeneration error:', e);
+      });
+
+    return () => { cancelled = true; };
+  }, [intakeData, previewResult]);
 
   // Helper: fetch payment status for a given email
   // TEMPORARY: Paywall disabled — always return paid
@@ -383,11 +400,24 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleViewPreview = async () => {
+    if (!previewResult && intakeData) {
+      try {
+        const { runPreviewDiagnostic } = await import('./utils/previewEngine');
+        setPreviewResult(runPreviewDiagnostic(intakeData));
+      } catch (e) {
+        console.error('handleViewPreview error:', e);
+      }
+    }
+    navigate(View.DIAGNOSTIC_PREVIEW);
+  };
+
   const handleInitialIntakeComplete = async (answers: IntakeResponse, password?: string) => {
     const { runPreviewDiagnostic } = await import('./utils/previewEngine');
     const preview = runPreviewDiagnostic(answers);
     setPreviewResult(preview);
     setIntakeData(answers);
+    setSkipAutoRecovery(false);
 
     const email = answers.email || userEmail;
 
@@ -511,8 +541,10 @@ export default function App() {
       localStorage.removeItem(STORAGE.PREVIEW);
       localStorage.removeItem('afterload_intake_progress_initial');
       localStorage.removeItem('afterload_intake_progress_deep');
+      setSkipAutoRecovery(true);
       setIntakeData(null);
       setPreviewResult(null);
+      setQuestionPackStatus('none');
       // Stay on dashboard so they see the fresh state
       navigate(View.DASHBOARD);
   };
@@ -600,7 +632,7 @@ export default function App() {
                   diagnosticResult={null}
                   paymentStatus={paymentStatus}
                   questionPackStatus={questionPackStatus}
-                  onViewReport={() => navigate(View.DIAGNOSTIC_PREVIEW)}
+                  onViewReport={handleViewPreview}
                   onViewFullReport={() => navigate(View.FULL_REPORT)}
                   onDiagnosticComplete={handleInitialIntakeComplete}
                   onResumeIntake={() => navigate(View.CLARITY_SESSION)}
