@@ -52,9 +52,11 @@ export default function AdminClientProfile({
   const stage = getClientStage(client, payments);
   const stageInfo = STAGE_CONFIG[stage];
 
-  const latestIntake = [...(client.intake_responses || [])]
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
-  const initialIntake = client.intake_responses?.find(r => r.mode === 'initial');
+  const sortedIntakes = [...(client.intake_responses || [])]
+    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  const latestIntake = sortedIntakes[0];
+  // Fallback to latest intake if mode tags are missing/legacy so admin can still review and route.
+  const initialIntake = client.intake_responses?.find(r => r.mode === 'initial') || latestIntake;
   const deepIntake = client.intake_responses?.find(r => r.mode === 'deep');
   const hasClaritySession = !!deepIntake;
   const answers = latestIntake?.answers || {};
