@@ -20,6 +20,12 @@ import {
 import type { IntakeResponse, DiagnosticResult } from '../utils/diagnosticEngine';
 import type { PaymentStatus } from '../utils/database';
 import { getPreviewEligibility } from '../utils/normalizeIntake';
+import {
+  describePattern,
+  describeConfidence,
+  summarizeConstraintGap,
+  recommendedFocus,
+} from '../utils/operationalPatternMeta';
 
 const Intake = lazy(() => import('./Intake'));
 
@@ -693,6 +699,30 @@ export default function Dashboard({
               <div>
                 <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-1">Rationale</div>
                 <p className="text-xs text-brand-dark/55 font-lora">{previewEligibility.metadata.rationale}</p>
+              </div>
+              <div className="pt-2 border-t border-brand-dark/10 space-y-1.5">
+                <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/25 mb-1">What This Means</div>
+                <p className="text-xs text-brand-dark/55 font-lora">
+                  {describePattern(previewEligibility.metadata.pattern)}
+                </p>
+                <p className="text-xs text-brand-dark/55 font-lora">
+                  {describeConfidence(
+                    previewEligibility.metadata.confidence,
+                    previewEligibility.metadata.founderDependencyScore
+                  )}
+                </p>
+                <p className="text-xs text-brand-dark/55 font-lora">
+                  {summarizeConstraintGap(
+                    previewEligibility.metadata.primaryConstraint,
+                    previewEligibility.metadata.secondaryConstraint
+                  )}
+                </p>
+                <p className="text-xs text-brand-dark/55 font-lora">
+                  {recommendedFocus(
+                    previewEligibility.metadata.primaryConstraint,
+                    previewEligibility.metadata.secondaryConstraint
+                  )}
+                </p>
               </div>
             </div>
           </div>

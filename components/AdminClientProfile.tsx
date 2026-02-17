@@ -18,6 +18,12 @@ import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
 import { runPreviewDiagnostic, PreviewResult } from '../utils/previewEngine';
 import { getPreviewEligibility } from '../utils/normalizeIntake';
 import { isOutdatedPack } from '../utils/deepDiveBuilder';
+import {
+  describePattern,
+  describeConfidence,
+  summarizeConstraintGap,
+  recommendedFocus,
+} from '../utils/operationalPatternMeta';
 
 const ReportEditor = lazy(() => import('./ReportEditor'));
 const QuestionPackEditor = lazy(() => import('./QuestionPackEditor'));
@@ -332,6 +338,30 @@ export default function AdminClientProfile({
                 <p className="text-xs text-brand-dark/50 font-lora leading-relaxed">
                   {previewEligibility.metadata.rationale}
                 </p>
+                <div className="pt-2 border-t border-brand-dark/10 space-y-1.5">
+                  <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30">Quick Interpretation</div>
+                  <p className="text-xs text-brand-dark/60 font-lora leading-relaxed">
+                    {describePattern(previewEligibility.metadata.pattern)}
+                  </p>
+                  <p className="text-xs text-brand-dark/60 font-lora leading-relaxed">
+                    {describeConfidence(
+                      previewEligibility.metadata.confidence,
+                      previewEligibility.metadata.founderDependencyScore
+                    )}
+                  </p>
+                  <p className="text-xs text-brand-dark/60 font-lora leading-relaxed">
+                    {summarizeConstraintGap(
+                      previewEligibility.metadata.primaryConstraint,
+                      previewEligibility.metadata.secondaryConstraint
+                    )}
+                  </p>
+                  <p className="text-xs text-brand-dark/60 font-lora leading-relaxed">
+                    {recommendedFocus(
+                      previewEligibility.metadata.primaryConstraint,
+                      previewEligibility.metadata.secondaryConstraint
+                    )}
+                  </p>
+                </div>
               </div>
             )}
 
