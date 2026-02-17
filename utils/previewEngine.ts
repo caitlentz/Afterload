@@ -2,7 +2,15 @@ import { IntakeResponse } from './diagnosticEngine';
 import { normalizeIntake } from './normalizeIntake';
 import { OPT, cleanDisplay } from './intakeOptionMap';
 import type { InsightFlag } from './clarityInsightRules';
-import { scoreDimensions, rankDimensions } from './previewScoring';
+import {
+  scoreDimensions,
+  rankDimensions,
+  calculateFounderDependencyScore,
+  interpretFounderDependencyScore,
+  resolveConstraintLabel,
+  selectPrimarySecondaryDimensions,
+  detectConstraintCategory,
+} from './previewScoring';
 import type { DimensionScores } from './previewScoring';
 export { getPreviewEligibility } from './normalizeIntake';
 export type { PreviewEligibility } from './normalizeIntake';
@@ -39,6 +47,9 @@ export type PreviewMetadata = {
 export type PreviewResult = {
   businessName: string;
   date: string;
+  founderDependencyScore: number;
+  founderDependencyLevel: 'LOW' | 'MODERATE' | 'HIGH' | 'CRITICAL';
+  founderDependencyLabel: string;
 
   // Section 1: Constraint Snapshot Summary (3-4 sentences)
   constraintSnapshot: string;
@@ -376,6 +387,10 @@ function generateCompoundNarrative(
   secondary: ConstraintDimension,
   data: IntakeResponse
 ): string {
+  if (detectConstraintCategory(data) === 'STRATEGIC') {
+    return 'Operational foundations are healthy; the next bottleneck is strategic growth design, not delegation or process repair.';
+  }
+
   const p = primary.type;
   const s = secondary.type;
 
@@ -811,13 +826,32 @@ function generateConstraintSnapshot(
   data: IntakeResponse,
   primary: ConstraintDimension,
   secondary: ConstraintDimension,
-  businessName: string
+  businessName: string,
+  primaryLabel: string,
+  secondaryLabel: string,
+  founderDependencyScore: number
 ): string {
   const parts: string[] = [];
   const name = businessName || 'Your Business';
 
+  if (detectConstraintCategory(data) === 'STRATEGIC') {
+    parts.push(`${name} is operating with strong delegation and low operational dependency.`);
+    parts.push('Core delivery, decisions, and process execution are no longer concentrated in the founder.');
+    if (data.growth_limiter === OPT.growth_limiter.DEMAND) {
+      parts.push('The current ceiling is market-side (demand consistency), not an internal operating bottleneck.');
+    } else {
+      parts.push('The primary next lever is strategic optimization (positioning, demand generation, pricing, or channel expansion).');
+    }
+    parts.push('Start with: run a 90-day demand + pricing experiment plan instead of adding internal process complexity.');
+    return parts.join(' ');
+  }
+
   // Sentence 1: What's concentrated
-  if (primary.type === 'founderCentralization') {
+  if (primaryLabel === 'Knowledge Silos') {
+    parts.push(`${name} is relying on tribal knowledge instead of documented decision standards.`);
+  } else if (primaryLabel === 'Process Gaps') {
+    parts.push(`${name} has documented workflows, but execution is inconsistent because those workflows are not enforced.`);
+  } else if (primary.type === 'founderCentralization') {
     parts.push(`${name} operates with key functions concentrated around the founder.`);
   } else if (primary.type === 'decisionBottleneck') {
     parts.push(`${name} runs on a decision model where most approvals flow through a single point.`);
@@ -846,7 +880,20 @@ function generateConstraintSnapshot(
   if (signal) {
     parts.push(signal);
   } else {
-    parts.push(`${secondary.label} reinforces the primary constraint, creating overlapping pressure.`);
+    parts.push(`${secondaryLabel} reinforces the primary constraint, creating overlapping pressure.`);
+  }
+
+  // Sentence 4: directional action preview
+  if (primaryLabel === 'Knowledge Silos') {
+    parts.push('Start with: capture the top 3 judgment calls as decision checklists your team can use without escalation.');
+  } else if (primaryLabel === 'Process Gaps') {
+    parts.push('Start with: enforce a mandatory pre-review checklist and reject work that bypasses the process.');
+  } else if (primaryLabel === 'Decision Load') {
+    parts.push('Start with: define approval thresholds so routine decisions stop queueing for founder sign-off.');
+  } else if (primaryLabel === 'Capacity Constraint') {
+    parts.push('Start with: raise throughput per hour (pricing or scope controls) before adding more founder hours.');
+  } else if (founderDependencyScore <= 15) {
+    parts.push('Start with: shift focus to market leverage and growth design rather than internal firefighting.');
   }
 
   return parts.join(' ');
@@ -873,6 +920,10 @@ function generateExposureMetrics(data: IntakeResponse): string[] {
 }
 
 function generateContinuityRisk(data: IntakeResponse): string {
+  if (detectConstraintCategory(data) === 'STRATEGIC') {
+    return 'Continuity risk is low: operations are resilient to normal founder absence and routine variance.';
+  }
+
   const absence = data.two_week_absence || '';
   const keyLeave = data.key_member_leaves || '';
 
@@ -901,6 +952,13 @@ function generateContinuityRisk(data: IntakeResponse): string {
 }
 
 function generateLoadTrajectory(data: IntakeResponse): string {
+  if (detectConstraintCategory(data) === 'STRATEGIC') {
+    if (data.growth_limiter === OPT.growth_limiter.DEMAND) {
+      return 'Trajectory now depends more on demand generation and positioning than on internal operating changes.';
+    }
+    return 'The operating model can support additional growth; trajectory is now strategy-limited, not execution-limited.';
+  }
+
   const state = data.current_state || '';
   const limiter = data.growth_limiter || '';
 
@@ -932,6 +990,10 @@ function generateLoadTrajectory(data: IntakeResponse): string {
 }
 
 function generateStructuralTension(data: IntakeResponse): string {
+  if (detectConstraintCategory(data) === 'STRATEGIC') {
+    return 'Operations are decoupled from the founder; the main tension is choosing the next growth bet, not fixing internal bottlenecks.';
+  }
+
   // 1) Check rule table — first match wins
   for (const rule of TENSION_RULES) {
     if (matchTensionWhen(data, rule.when)) {
@@ -973,9 +1035,18 @@ export function runPreviewDiagnostic(raw: IntakeResponse): PreviewResult {
   const businessName = data.businessName || 'Your Business';
   const scores = scoreDimensions(data);
   const ranked = rankDimensions(scores);
-
-  const primary = ranked[0];
-  const secondary = ranked[1];
+  const selected = selectPrimarySecondaryDimensions(data, scores);
+  const primary = selected.primary;
+  const secondary = selected.secondary;
+  const category = selected.category;
+  const founderDependencyScore = calculateFounderDependencyScore(data);
+  const founderDependency = interpretFounderDependencyScore(founderDependencyScore);
+  const primaryLabel = category === 'STRATEGIC'
+    ? 'Strategic Optimization'
+    : resolveConstraintLabel(primary.type, data);
+  const secondaryLabel = category === 'STRATEGIC'
+    ? resolveConstraintLabel(ranked[0].type, data)
+    : resolveConstraintLabel(secondary.type, data);
 
   // Resolve track for metadata
   const track = resolveTrack(data);
@@ -998,9 +1069,26 @@ export function runPreviewDiagnostic(raw: IntakeResponse): PreviewResult {
   return {
     businessName,
     date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
-    constraintSnapshot: generateConstraintSnapshot(data, primary, secondary, businessName),
-    primaryConstraint: { type: primary.type, label: primary.label },
-    secondaryConstraint: { type: secondary.type, label: secondary.label },
+    founderDependencyScore,
+    founderDependencyLevel: founderDependency.level,
+    founderDependencyLabel: founderDependency.label,
+    constraintSnapshot: generateConstraintSnapshot(
+      data,
+      primary,
+      secondary,
+      businessName,
+      primaryLabel,
+      secondaryLabel,
+      founderDependencyScore
+    ),
+    primaryConstraint: {
+      type: category === 'STRATEGIC' ? 'strategicOptimization' : primary.type,
+      label: primaryLabel,
+    },
+    secondaryConstraint: {
+      type: category === 'STRATEGIC' ? ranked[0].type : secondary.type,
+      label: secondaryLabel,
+    },
     constraintCompoundNarrative: generateCompoundNarrative(primary, secondary, data),
     exposureMetrics: generateExposureMetrics(data),
     continuityRisk: generateContinuityRisk(data),
@@ -1010,8 +1098,8 @@ export function runPreviewDiagnostic(raw: IntakeResponse): PreviewResult {
       track,
       scores,
       ranked: ranked.map(r => ({ type: r.type, label: r.label, score: r.score })),
-      primary: { type: primary.type, label: primary.label, score: primary.score },
-      secondary: { type: secondary.type, label: secondary.label, score: secondary.score },
+      primary: { type: primary.type, label: primaryLabel, score: primary.score },
+      secondary: { type: secondary.type, label: secondaryLabel, score: secondary.score },
       insightFlags,
     },
   };

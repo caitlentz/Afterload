@@ -92,6 +92,7 @@ const CONSTRAINT_MODULES: Record<string, string[]> = {
   structuralFragility:   ['System Health', 'Process Heatmap', 'Flow Friction'],
   decisionBottleneck:    ['Decision Load', 'Flow Friction', 'Diagnosis & Roadmap'],
   capacityConstraint:    ['Financial Health', 'Workload Analysis', 'Process Heatmap'],
+  strategicOptimization: ['Diagnosis & Roadmap', 'Financial Health', 'Process Heatmap'],
 };
 
 // ── Focus → Module mapping (user preference) ──

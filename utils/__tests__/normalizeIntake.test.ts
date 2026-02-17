@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { getPreviewEligibility } from '../normalizeIntake';
 import { OPT } from '../intakeOptionMap';
 import type { IntakeResponse } from '../diagnosticEngine';
-import { rankDimensions, scoreDimensions } from '../previewScoring';
+import { scoreDimensions, selectPrimarySecondaryDimensions } from '../previewScoring';
 
 function makeIntake(overrides: Partial<IntakeResponse> = {}): IntakeResponse {
   return {
@@ -55,31 +55,41 @@ describe('getPreviewEligibility operational pattern labeling', () => {
 
   it('sets confidence HIGH for founderDependencyScore >= 70', () => {
     const result = getPreviewEligibility(makeIntake({
+      pricing_decisions: OPT.pricing_decisions.ONLY_ME,
+      process_documentation: OPT.process_documentation.IN_HEAD,
+      client_relationship: OPT.client_relationship.HIRE_ME,
       revenue_generation: OPT.revenue_generation.FOUNDER_MAJORITY,
       two_week_absence: OPT.two_week_absence.REVENUE_DROPS,
       final_decisions: OPT.final_decisions.ALWAYS_ME,
     }));
 
-    expect(result.metadata.founderDependencyScore).toBe(70);
+    expect(result.metadata.founderDependencyScore).toBeGreaterThanOrEqual(70);
     expect(result.metadata.confidence).toBe('HIGH');
   });
 
   it('sets confidence MED for founderDependencyScore 50-69', () => {
     const result = getPreviewEligibility(makeIntake({
+      final_decisions: OPT.final_decisions.ALWAYS_ME,
+      pricing_decisions: OPT.pricing_decisions.I_APPROVE,
       revenue_generation: OPT.revenue_generation.FOUNDER_MAJORITY,
-      two_week_absence: OPT.two_week_absence.REVENUE_DROPS,
+      two_week_absence: OPT.two_week_absence.ESCALATES,
+      process_documentation: OPT.process_documentation.LIGHT,
+      client_relationship: OPT.client_relationship.EXPECT_ME,
+      interruption_frequency: OPT.interruption_frequency.FEW_WEEKLY,
     }));
 
-    expect(result.metadata.founderDependencyScore).toBe(50);
+    expect(result.metadata.founderDependencyScore).toBeGreaterThanOrEqual(50);
+    expect(result.metadata.founderDependencyScore).toBeLessThan(70);
     expect(result.metadata.confidence).toBe('MED');
   });
 
   it('sets confidence LOW for founderDependencyScore below 50', () => {
     const result = getPreviewEligibility(makeIntake({
-      revenue_generation: OPT.revenue_generation.FOUNDER_MAJORITY,
+      final_decisions: OPT.final_decisions.SHARED,
+      interruption_frequency: OPT.interruption_frequency.FEW_WEEKLY,
     }));
 
-    expect(result.metadata.founderDependencyScore).toBe(25);
+    expect(result.metadata.founderDependencyScore).toBeLessThan(50);
     expect(result.metadata.confidence).toBe('LOW');
   });
 
@@ -100,7 +110,7 @@ describe('getPreviewEligibility operational pattern labeling', () => {
     expect(result.metadata.confidence).toBe('LOW');
   });
 
-  it('uses shared preview scorer/ranker outputs for constraints', () => {
+  it('uses shared preview scorer selection outputs for constraints', () => {
     const intake = makeIntake({
       growth_limiter: OPT.growth_limiter.STAFF,
       final_decisions: OPT.final_decisions.ALWAYS_ME,
@@ -108,10 +118,12 @@ describe('getPreviewEligibility operational pattern labeling', () => {
       process_documentation: OPT.process_documentation.LIGHT,
     });
     const result = getPreviewEligibility(intake);
-    const ranked = rankDimensions(scoreDimensions(intake));
+    const selected = selectPrimarySecondaryDimensions(intake, scoreDimensions(intake));
 
-    expect(result.metadata.primaryConstraint).toEqual(ranked[0]);
-    expect(result.metadata.secondaryConstraint).toEqual(ranked[1]);
+    expect(result.metadata.primaryConstraint.type).toEqual(selected.primary.type);
+    expect(result.metadata.primaryConstraint.score).toEqual(selected.primary.score);
+    expect(result.metadata.secondaryConstraint.type).toEqual(selected.secondary.type);
+    expect(result.metadata.secondaryConstraint.score).toEqual(selected.secondary.score);
   });
 
   it('rationale includes primary label, secondary label, pattern, and confidence', () => {

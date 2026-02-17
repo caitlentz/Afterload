@@ -11,6 +11,13 @@ interface DiagnosticProps {
 
 export default function DiagnosticPreview({ onHome, onUnlock, preview }: DiagnosticProps) {
   if (!preview) return null;
+  const score = preview.founderDependencyScore ?? 0;
+  const level = preview.founderDependencyLevel ?? 'LOW';
+  const markerColor =
+    score >= 81 ? 'text-red-500' :
+    score >= 61 ? 'text-orange-500' :
+    score >= 31 ? 'text-amber-500' :
+    'text-emerald-500';
 
   return (
     <div className="flex flex-col min-h-screen w-full relative overflow-hidden">
@@ -41,6 +48,20 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
           <div className="bg-brand-dark text-white p-8 md:p-12 rounded-[2rem] relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
             <div className="relative z-10">
+              <div className="mb-6">
+                <div className="relative h-1 rounded-full bg-white/15 overflow-visible">
+                  <div className="absolute inset-0 bg-gradient-to-r from-emerald-400 via-amber-400 to-red-500 opacity-80" />
+                  <div
+                    className={`absolute -top-2 -translate-x-1/2 text-sm leading-none ${markerColor}`}
+                    style={{ left: `${Math.max(0, Math.min(100, score))}%` }}
+                  >
+                    ●
+                  </div>
+                </div>
+                <div className="mt-3 text-[11px] tracking-wider uppercase text-white/70 font-bold">
+                  {score}/100 · {level} Dependency
+                </div>
+              </div>
               <p className="font-lora text-white/85 text-lg leading-relaxed">
                 {preview.constraintSnapshot}
               </p>
@@ -137,14 +158,49 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
 
         {/* LOCKED SECTIONS — visual tease */}
         <section className="mb-16 animate-[fadeInUp_0.6s_ease-out_0.4s_both]">
-          <div className="space-y-3 opacity-40">
-            {['Process Heatmap', 'Pressure Point Analysis', 'Annual Friction Cost', 'Three-Phase Roadmap'].map((section) => (
-              <div key={section} className="bg-white/40 p-6 rounded-2xl border border-brand-dark/5 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Lock size={14} className="text-brand-dark/30" />
-                  <span className="font-serif text-brand-dark/50">{section}</span>
+          <div className="space-y-3">
+            {[
+              {
+                title: 'Pressure Point Analysis',
+                bullets: [
+                  'Identifies your top 3 operational bottlenecks',
+                  'Maps where approvals stall flow',
+                  'Shows idle time vs productive delivery time',
+                ],
+              },
+              {
+                title: 'Annual Friction Cost',
+                bullets: [
+                  'Estimates the annual cost of operational drag',
+                  'Quantifies lost capacity and delay cost',
+                  'Compares cost of inaction vs cost to fix',
+                ],
+              },
+              {
+                title: 'Three-Phase Roadmap',
+                bullets: [
+                  'Weeks 1-2: fast stabilization moves',
+                  'Weeks 3-8: structural system upgrades',
+                  'Months 3-6: ceiling removal for scale',
+                ],
+              },
+            ].map((section) => (
+              <div key={section.title} className="bg-white/50 p-6 rounded-2xl border border-brand-dark/5">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <Lock size={14} className="text-brand-dark/30" />
+                    <span className="font-serif text-brand-dark/70">{section.title}</span>
+                  </div>
+                  <span className="text-[9px] font-bold uppercase tracking-widest text-brand-dark/25">Locked</span>
                 </div>
-                <span className="text-[9px] font-bold uppercase tracking-widest text-brand-dark/20">Locked</span>
+                <div className="space-y-1.5">
+                  {section.bullets.map((bullet) => (
+                    <div key={bullet} className="text-xs text-brand-dark/45 flex items-start gap-2">
+                      <span className="mt-0.5">→</span>
+                      <span>{bullet}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
@@ -163,6 +219,15 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
               The full Business Clarity Report goes deeper — 25 targeted questions that map your exact bottleneck,
               calculate the cost, and build a phased roadmap specific to your business.
             </p>
+            <div className="text-left max-w-xl mx-auto mb-8 bg-white/60 rounded-2xl border border-white/70 p-5">
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/35 mb-2">What Happens Next</div>
+              <div className="text-xs text-brand-dark/60 space-y-1.5">
+                <div>The next 25 questions are free to answer.</div>
+                <div>You’ll see your tailored operational analysis foundation after completion.</div>
+                <div>To unlock full outputs (friction-cost model, pressure-point analysis, and 90-day roadmap), payment happens after the clarity session.</div>
+                <div>One-time payment: $1,200.</div>
+              </div>
+            </div>
             <div className="flex flex-col items-center gap-4">
               <button
                 onClick={onUnlock}
@@ -171,7 +236,7 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
                 Continue to Deep Dive <ArrowRight size={14} />
               </button>
               <p className="text-[10px] text-brand-dark/30 max-w-xs">
-                25 targeted questions. About 10 minutes. Free to answer — payment comes after.
+                25 targeted questions · about 10 minutes · payment comes only after completion.
               </p>
             </div>
           </div>

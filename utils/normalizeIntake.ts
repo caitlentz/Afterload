@@ -1,6 +1,11 @@
 import { IntakeResponse } from './diagnosticEngine';
 import { OPT } from './intakeOptionMap';
-import { rankDimensions, scoreDimensions } from './previewScoring';
+import {
+  calculateFounderDependencyScore,
+  resolveConstraintLabel,
+  scoreDimensions,
+  selectPrimarySecondaryDimensions,
+} from './previewScoring';
 import type { RankedDimension } from './previewScoring';
 
 // ------------------------------------------------------------------
@@ -23,15 +28,7 @@ export type PreviewEligibility = {
 };
 
 function calculateFounderDependency(data: IntakeResponse): number {
-  let score = 0;
-
-  if (data.revenue_generation === OPT.revenue_generation.FOUNDER_MAJORITY) score += 25;
-  if (data.two_week_absence === OPT.two_week_absence.REVENUE_DROPS) score += 25;
-  if (data.final_decisions === OPT.final_decisions.ALWAYS_ME) score += 20;
-  if (data.roles_handled === OPT.roles_handled.SEVEN_PLUS) score += 15;
-  if (data.client_relationship === OPT.client_relationship.HIRE_ME) score += 15;
-
-  return Math.min(100, score);
+  return calculateFounderDependencyScore(data);
 }
 
 function deriveOperationalPattern(
@@ -53,9 +50,16 @@ function deriveConfidence(founderDependencyScore: number): 'HIGH' | 'MED' | 'LOW
 
 export function getPreviewEligibility(data: IntakeResponse): PreviewEligibility {
   const founderDependencyScore = calculateFounderDependency(data);
-  const ranked = rankDimensions(scoreDimensions(data));
-  const primaryConstraint = ranked[0];
-  const secondaryConstraint = ranked[1];
+  const scores = scoreDimensions(data);
+  const { primary, secondary } = selectPrimarySecondaryDimensions(data, scores);
+  const primaryConstraint: RankedDimension = {
+    ...primary,
+    label: resolveConstraintLabel(primary.type, data),
+  };
+  const secondaryConstraint: RankedDimension = {
+    ...secondary,
+    label: resolveConstraintLabel(secondary.type, data),
+  };
   const pattern = deriveOperationalPattern(primaryConstraint, secondaryConstraint);
   const confidence = deriveConfidence(founderDependencyScore);
   const rationale = `Pattern: ${pattern} (primary=${primaryConstraint.label}) + (secondary=${secondaryConstraint.label}); confidence=${confidence}; MIXED=${pattern === 'MIXED'}.`;
