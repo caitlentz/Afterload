@@ -282,6 +282,7 @@ export default function AdminView() {
               const answers = latestIntake?.answers || {};
               const previewEligibility = latestIntake?.answers ? getPreviewEligibility(latestIntake.answers) : null;
               const clientPayments = payments.filter(p => p.email?.toLowerCase() === client.email?.toLowerCase() && p.status === 'succeeded');
+              const clarityReleased = client.admin_notes?.some((n: any) => n.note?.includes('[clarity-released]'));
               const stage = client.stage;
               const stageInfo = STAGE_CONFIG[stage];
               const biz = getBusinessInfo(answers);
@@ -330,6 +331,11 @@ export default function AdminView() {
                       <span className={`text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap ${stageInfo.color}`}>
                         {stageInfo.label}
                       </span>
+                      {clarityReleased && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full whitespace-nowrap bg-green-100 text-green-700">
+                          Clarity Released
+                        </span>
+                      )}
                       <ChevronRight size={16} className="text-brand-dark/20" />
                     </div>
                   </div>

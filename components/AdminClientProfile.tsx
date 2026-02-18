@@ -11,13 +11,13 @@ import {
 } from '../utils/adminTypes';
 import {
   saveAdminNote, saveAdminTaggedNote, deleteAdminNote,
-  fetchReportOverrides, fetchQuestionPack, fetchIntakeByEmail,
+  fetchReportOverrides, fetchQuestionPack, fetchIntakeByEmail, saveQuestionPack,
   ReportOverride, QuestionPack
 } from '../utils/database';
 import { runDiagnostic, IntakeResponse } from '../utils/diagnosticEngine';
 import { runPreviewDiagnostic, PreviewResult } from '../utils/previewEngine';
 import { getPreviewEligibility } from '../utils/normalizeIntake';
-import { isOutdatedPack, BUILDER_VERSION, QUESTION_BANK_VERSION } from '../utils/deepDiveBuilder';
+import { buildDeepDiveQuestionSet, isOutdatedPack, BUILDER_VERSION, QUESTION_BANK_VERSION } from '../utils/deepDiveBuilder';
 import {
   describePattern,
   describeConfidence,
@@ -50,6 +50,7 @@ export default function AdminClientProfile({
   const [overrides, setOverrides] = useState<ReportOverride[]>([]);
   const [questionPack, setQuestionPack] = useState<QuestionPack | null>(null);
   const [packLoaded, setPackLoaded] = useState(false);
+  const [releasingQuestionnaire, setReleasingQuestionnaire] = useState(false);
   const [fallbackInitialAnswers, setFallbackInitialAnswers] = useState<IntakeResponse | null>(null);
 
   // Derived data
@@ -135,7 +136,7 @@ export default function AdminClientProfile({
   ).toLowerCase();
   const isGeneratingPack = packStatus === 'generating';
   const isDraftPack = packStatus === 'draft';
-  const isShippedPack = packStatus === 'shipped';
+  const isShippedPack = packStatus === 'shipped' || packStatus === 'custom';
   const packOutdated = isDraftPack && isOutdatedPack(questionPack?.pack_meta);
 
   // ─── Admin Actions ────────────────────────────────────────────────
@@ -165,6 +166,37 @@ export default function AdminClientProfile({
   const handleReleaseReport = async () => {
     await saveAdminTaggedNote(client.id, `Report released for client viewing on ${new Date().toLocaleDateString()}`, 'report-released');
     onDataChanged();
+  };
+
+  const handleReleaseClarityQuestionnaire = async () => {
+    if (!previewResult || !effectiveInitialAnswers || releasingQuestionnaire) return;
+    setReleasingQuestionnaire(true);
+    try {
+      let questions = (questionPack?.questions || []) as any[];
+      let packMeta = questionPack?.pack_meta as any;
+
+      if (!questions.length || !packMeta) {
+        const generated = buildDeepDiveQuestionSet({
+          intake: effectiveInitialAnswers,
+          preview: previewResult,
+        });
+        questions = generated.questions;
+        packMeta = generated.packMeta;
+      }
+
+      const saved = await saveQuestionPack(client.id, questions, packMeta, 'shipped');
+      if (saved) {
+        await saveAdminTaggedNote(
+          client.id,
+          `Clarity questionnaire released for client dashboard on ${new Date().toLocaleDateString()}`,
+          'clarity-released'
+        );
+        await loadQuestionPack();
+        onDataChanged();
+      }
+    } finally {
+      setReleasingQuestionnaire(false);
+    }
   };
 
   return (
@@ -454,6 +486,25 @@ export default function AdminClientProfile({
                 Builder version: {questionPack?.pack_meta?.builderVersion || (isGeneratingPack ? BUILDER_VERSION : '—')} ·
                 Question bank version: {questionPack?.pack_meta?.questionBankVersion || (isGeneratingPack ? QUESTION_BANK_VERSION : '—')}
               </div>
+              {!isGeneratingPack && previewResult && (
+                <div className="mt-3">
+                  {!isShippedPack ? (
+                    <button
+                      onClick={handleReleaseClarityQuestionnaire}
+                      disabled={releasingQuestionnaire}
+                      className="w-full py-2.5 rounded-lg bg-brand-dark text-white text-[10px] font-bold uppercase tracking-wider hover:bg-brand-deep transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                    >
+                      <Send size={12} />
+                      {questionPack?.questions?.length ? 'Release Full Clarity Questionnaire' : 'Generate + Release Full Clarity Questionnaire'}
+                    </button>
+                  ) : (
+                    <div className="py-2 px-3 rounded-lg bg-green-50 text-green-700 text-[10px] font-bold uppercase tracking-wider flex items-center gap-2">
+                      <CheckCircle size={12} />
+                      Clarity questionnaire released — visible on client dashboard
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <Suspense fallback={<div className="animate-pulse h-32 bg-brand-dark/5 rounded-xl" />}>
               <QuestionPackEditor
@@ -711,6 +762,11 @@ export default function AdminClientProfile({
                         <span className="flex items-center gap-2">
                           <ArrowRight size={12} className="text-blue-500" />
                           <span className="text-blue-700 font-medium">{note.note.replace('[clarity-request] ', '')}</span>
+                        </span>
+                      ) : note.note.startsWith('[clarity-released]') ? (
+                        <span className="flex items-center gap-2">
+                          <CheckCircle size={12} className="text-green-500" />
+                          <span className="text-green-700 font-medium">{note.note.replace('[clarity-released] ', '')}</span>
                         </span>
                       ) : (
                         note.note

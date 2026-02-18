@@ -463,9 +463,9 @@ export default function Dashboard({
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-serif text-xl mb-1">Start Clarity Session</h3>
+                      <h3 className="font-serif text-xl mb-1">Start Full Clarity Questionnaire</h3>
                       <p className="text-white/60 text-sm font-lora">
-                        25 targeted questions · About 10 minutes · This is where we find the real answers
+                        25 targeted questions · About 10 minutes · Released by admin and ready now
                       </p>
                     </div>
                     <ArrowRight
