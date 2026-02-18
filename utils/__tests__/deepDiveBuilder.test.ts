@@ -6,6 +6,7 @@ import {
   QUESTION_BANK_VERSION,
   isOutdatedPack,
 } from '../deepDiveBuilder';
+import { CLARITY_SESSION_QUESTIONS } from '../claritySessionQuestions';
 import { runPreviewDiagnostic, PreviewResult } from '../previewEngine';
 import type { IntakeResponse } from '../diagnosticEngine';
 
@@ -100,6 +101,28 @@ function makeSystemCapacityPreview(): PreviewResult {
       type: 'capacityConstraint',
       label: 'Capacity Constraint',
       score: 55,
+    },
+  } as unknown as PreviewResult;
+}
+
+function makeSyntheticPreview(
+  track: 'A' | 'B' | 'C',
+  primaryType: string,
+  secondaryType: string
+): PreviewResult {
+  return {
+    primaryConstraint: {
+      type: primaryType,
+      label: primaryType,
+      score: 80,
+    },
+    secondaryConstraint: {
+      type: secondaryType,
+      label: secondaryType,
+      score: 70,
+    },
+    metadata: {
+      track,
     },
   } as unknown as PreviewResult;
 }
@@ -326,6 +349,7 @@ describe('buildDeepDiveQuestionSet', () => {
     expect(ids.has('recovery_tax')).toBe(true);
     expect(ids.has('bus_factor_30_day')).toBe(true);
     expect(ids.has('interruption_source_id')).toBe(true);
+    expect(ids.has('energy_runway')).toBe(true);
   });
 
   // ── avoidFinance ──
@@ -429,5 +453,78 @@ describe('buildDeepDiveQuestionSet', () => {
       'Workload Analysis',
     ]);
     expect(trackSpecific.every(q => allowedModules.has(q.module))).toBe(true);
+  });
+
+  it('keeps routed questions aligned with pack track (or UNIVERSAL)', () => {
+    const fixtures = [
+      { intake: makeStandardizedIntake(), preview: buildPreview(makeStandardizedIntake()) },
+      { intake: makeCreativeAgencyIntake(), preview: buildPreview(makeCreativeAgencyIntake()) },
+      { intake: makeCoachingIntake(), preview: buildPreview(makeCoachingIntake()) },
+    ];
+
+    for (const fixture of fixtures) {
+      const result = buildDeepDiveQuestionSet({
+        intake: fixture.intake,
+        preview: fixture.preview,
+        userPrefs: { mode: 'DEEP' },
+      });
+
+      for (const q of result.questions) {
+        const routedToTrack = q.tracks.includes(result.packMeta.track);
+        const universal = q.tracks.includes('UNIVERSAL');
+        expect(routedToTrack || universal).toBe(true);
+      }
+    }
+  });
+
+  it('prefers preview metadata track when available', () => {
+    const intake = makeStandardizedIntake(); // normally Track A
+    const preview = makeSyntheticPreview('C', 'capacityConstraint', 'decisionBottleneck');
+
+    const result = buildDeepDiveQuestionSet({
+      intake,
+      preview,
+      userPrefs: { mode: 'STANDARD' },
+    });
+
+    expect(result.packMeta.track).toBe('C');
+  });
+
+  it('routes every clarity-bank question in at least one valid DEEP routing scenario', () => {
+    const seen = new Set<string>();
+    const tracks: Array<'A' | 'B' | 'C'> = ['A', 'B', 'C'];
+    const focuses: Array<'MIXED' | 'SYSTEMS' | 'TEAM' | 'DELIVERY' | 'SALES'> = [
+      'MIXED',
+      'SYSTEMS',
+      'TEAM',
+      'DELIVERY',
+      'SALES',
+    ];
+    const primaryTypes = [
+      'founderCentralization',
+      'structuralFragility',
+      'decisionBottleneck',
+      'capacityConstraint',
+      'strategicOptimization',
+    ];
+
+    for (const track of tracks) {
+      for (const primary of primaryTypes) {
+        const secondary = primary === 'capacityConstraint' ? 'decisionBottleneck' : 'capacityConstraint';
+        for (const focus of focuses) {
+          const preview = makeSyntheticPreview(track, primary, secondary);
+          const result = buildDeepDiveQuestionSet({
+            intake: makeCreativeAgencyIntake(),
+            preview,
+            userPrefs: { mode: 'DEEP', focus, maxQuestions: 100 },
+          });
+          result.questions.forEach(q => seen.add(q.id));
+        }
+      }
+    }
+
+    const allIds = CLARITY_SESSION_QUESTIONS.map(q => q.id);
+    const missing = allIds.filter(id => !seen.has(id));
+    expect(missing).toEqual([]);
   });
 });

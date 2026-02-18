@@ -73,6 +73,7 @@ const SPINE_IDS_FULL: string[] = [
   'deep_work_audit',                // Context Switching
   'recovery_tax',                   // Context Switching
   'runway_stress_test',             // Sustainability Horizon
+  'energy_runway',                  // Sustainability Horizon (depends on runway_stress_test)
   'revenue_range',                  // Financial Health
   'profitability_gut_check',        // Financial Health
   'pricing_confidence',             // Financial Health
@@ -118,6 +119,14 @@ function resolveTrack(intake: IntakeResponse): 'A' | 'B' | 'C' {
   if (lower.includes('logistics') || lower.includes('trades')) return 'A';
   if (lower.includes('consulting')) return 'C';
   return 'B';
+}
+
+function resolvePackTrack(intake: IntakeResponse, preview?: PreviewResult): 'A' | 'B' | 'C' {
+  const previewTrack = preview?.metadata?.track;
+  if (previewTrack === 'A' || previewTrack === 'B' || previewTrack === 'C') {
+    return previewTrack;
+  }
+  return resolveTrack(intake);
 }
 
 // ── Helpers ──
@@ -185,7 +194,7 @@ export function buildDeepDiveQuestionSet(args: {
   const includePersonable = userPrefs.includePersonable ?? true;
   const maxQuestions = userPrefs.maxQuestions ?? MODE_TARGETS[mode];
 
-  const track = resolveTrack(intake);
+  const track = resolvePackTrack(intake, preview);
   const primaryType = preview.primaryConstraint?.type ?? '';
   const secondaryType = preview.secondaryConstraint?.type ?? '';
 
