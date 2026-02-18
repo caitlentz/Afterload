@@ -254,7 +254,7 @@ export default function DiagnosticPreview({ onHome, onUnlock, preview }: Diagnos
                 <div>The next 25 questions are free to answer.</div>
                 <div>You’ll see your tailored operational analysis foundation after completion.</div>
                 <div>To unlock full outputs (friction-cost model, pressure-point analysis, and 90-day roadmap), payment happens after the clarity session.</div>
-                <div>One-time payment: $1,200.</div>
+                <div>One-time payment: $495.</div>
               </div>
             </div>
             <div className="flex flex-col items-center gap-4">

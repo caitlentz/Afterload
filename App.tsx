@@ -76,6 +76,12 @@ const STORAGE = {
   VIEW: 'afterload_view',
 };
 
+const CLARITY_REQUEST_KEY_PREFIX = 'afterload_clarity_request_';
+
+function buildClarityRequestKey(email: string) {
+  return `${CLARITY_REQUEST_KEY_PREFIX}${email.trim().toLowerCase()}`;
+}
+
 
 export default function App() {
   // 1. Initialize State
@@ -104,6 +110,7 @@ export default function App() {
   });
 
   const [questionPackStatus, setQuestionPackStatus] = useState<'none' | 'draft' | 'shipped'>('none');
+  const [clarityRequestPending, setClarityRequestPending] = useState(false);
   const [skipAutoRecovery, setSkipAutoRecovery] = useState(false);
 
   const rankQuestionPackStatus = (status: 'none' | 'draft' | 'shipped') => {
@@ -124,6 +131,22 @@ export default function App() {
 
   // Clear chunk reload flag on successful mount
   useEffect(() => { sessionStorage.removeItem('afterload_chunk_reload'); }, []);
+
+  // Keep a local flag for whether the user explicitly requested clarity questionnaire creation.
+  useEffect(() => {
+    const candidateEmails = [userEmail, intakeData?.email]
+      .filter((v): v is string => !!v)
+      .map(v => v.trim().toLowerCase())
+      .filter((v, i, arr) => arr.indexOf(v) === i);
+
+    if (candidateEmails.length === 0) {
+      setClarityRequestPending(false);
+      return;
+    }
+
+    const hasRequest = candidateEmails.some(email => !!localStorage.getItem(buildClarityRequestKey(email)));
+    setClarityRequestPending(hasRequest);
+  }, [userEmail, intakeData?.email]);
 
   // Fetch question pack status when user/intake email is available.
   // Uses both sources so auth-email mismatch doesn't hide shipped packs.
@@ -451,7 +474,12 @@ export default function App() {
       }
     }
 
-    navigate(View.CLARITY_SESSION);
+    if (email) {
+      localStorage.setItem(buildClarityRequestKey(email), new Date().toISOString());
+      setClarityRequestPending(true);
+    }
+
+    navigate(View.DASHBOARD);
   };
 
   const handleInitialIntakeComplete = async (answers: IntakeResponse, password?: string) => {
@@ -579,6 +607,9 @@ export default function App() {
   };
 
   const handleResetDiagnostic = () => {
+      [userEmail, intakeData?.email]
+        .filter((v): v is string => !!v)
+        .forEach((email) => localStorage.removeItem(buildClarityRequestKey(email)));
       localStorage.removeItem(STORAGE.INTAKE);
       localStorage.removeItem(STORAGE.PREVIEW);
       localStorage.removeItem('afterload_intake_progress_initial');
@@ -587,6 +618,7 @@ export default function App() {
       setIntakeData(null);
       setPreviewResult(null);
       setQuestionPackStatus('none');
+      setClarityRequestPending(false);
       // Stay on dashboard so they see the fresh state
       navigate(View.DASHBOARD);
   };
@@ -674,6 +706,7 @@ export default function App() {
                   diagnosticResult={null}
                   paymentStatus={paymentStatus}
                   questionPackStatus={questionPackStatus}
+                  clarityRequestPending={clarityRequestPending}
                   onViewReport={handleViewPreview}
                   onViewFullReport={() => navigate(View.FULL_REPORT)}
                   onDiagnosticComplete={handleInitialIntakeComplete}

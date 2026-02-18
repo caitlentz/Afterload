@@ -35,6 +35,7 @@ interface DashboardProps {
   diagnosticResult: DiagnosticResult | null;
   paymentStatus: PaymentStatus;
   questionPackStatus?: 'none' | 'draft' | 'shipped';
+  clarityRequestPending?: boolean;
   onViewReport: () => void;
   onViewFullReport: () => void;
   onDiagnosticComplete: (answers: IntakeResponse, password?: string) => void;
@@ -129,6 +130,7 @@ export default function Dashboard({
   diagnosticResult,
   paymentStatus,
   questionPackStatus = 'none',
+  clarityRequestPending = false,
   onViewReport,
   onViewFullReport,
   onDiagnosticComplete,
@@ -221,7 +223,14 @@ export default function Dashboard({
   }, [stage, userEmail]);
 
   const greeting = getGreeting();
-  const contextMessage = getContextMessage(stage, firstName);
+  const contextMessage =
+    stage === 'preview_ready'
+      ? questionPackStatus === 'shipped'
+        ? "Your clarity questionnaire is ready. Start when you're ready."
+        : clarityRequestPending
+          ? "Your personalized clarity questions are being prepared."
+          : "Your preview report is ready. Open it and click Create My Clarity Questionnaire when you're ready."
+      : getContextMessage(stage, firstName);
 
   return (
     <div className="min-h-screen w-full relative z-20 pt-28 pb-20 px-6">
@@ -465,7 +474,7 @@ export default function Dashboard({
                     />
                   </div>
                 </button>
-              ) : (
+              ) : clarityRequestPending ? (
                 <div className="w-full bg-white/70 backdrop-blur-xl p-6 md:p-8 rounded-[1.5rem] border border-white/80">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
@@ -479,7 +488,7 @@ export default function Dashboard({
                     We're building a custom set of questions based on your initial intake. You'll be notified when they're ready.
                   </p>
                 </div>
-              )}
+              ) : null}
             </div>
           )}
 
