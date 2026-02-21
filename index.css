@@ -119,8 +119,8 @@ body {
   50% { transform: translate(-5%, -20%) rotate(-90deg); }
 }
 @keyframes orb3 {
-  0%, 100% { transform: translate(0%, 0%) rotate(0deg); }
-  50% { transform: translate(10%, -12%) rotate(40deg); }
+  0%, 100% { transform: translate(-10%, 10%) rotate(0deg); }
+  50% { transform: translate(10%, -20%) rotate(-90deg); }
 }
 
 /* Hero entry animations */
