@@ -178,7 +178,7 @@ export default function AdminView() {
   // ─── List View ────────────────────────────────────────────────────
   return (
     <div className="min-h-screen w-full pt-28 pb-20 px-6">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto page-cream-sage-shell">
 
         {/* Header */}
         <div className="mb-8 animate-[fadeInUp_0.6s_ease-out_both]">

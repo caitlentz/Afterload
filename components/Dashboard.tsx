@@ -234,7 +234,7 @@ export default function Dashboard({
 
   return (
     <div className="min-h-screen w-full relative z-20 pt-28 pb-20 px-6">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-3xl mx-auto page-cream-sage-shell">
         {/* Greeting + Settings */}
         <div
           className="mb-12 animate-[fadeInUp_0.6s_ease-out_both]"

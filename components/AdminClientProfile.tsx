@@ -201,7 +201,7 @@ export default function AdminClientProfile({
 
   return (
     <div className="min-h-screen w-full pt-28 pb-20 px-6">
-      <div className="max-w-5xl mx-auto space-y-6">
+      <div className="max-w-5xl mx-auto space-y-6 page-cream-sage-shell">
 
         {/* ─── Header ─── */}
         <div className="flex items-start gap-4 animate-[fadeInUp_0.4s_ease-out_both]">
