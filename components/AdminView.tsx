@@ -33,7 +33,7 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
 
   return (
     <div className="min-h-screen flex items-center justify-center px-6">
-      <form onSubmit={handleSubmit} className="bg-white/70 backdrop-blur-md rounded-3xl border border-white/80 p-10 w-full max-w-sm text-center shadow-lg">
+      <form onSubmit={handleSubmit} className="card-delivery-style rounded-3xl p-10 w-full max-w-sm text-center shadow-lg">
         <div className="w-14 h-14 rounded-full bg-brand-dark/5 flex items-center justify-center mx-auto mb-6">
           <Shield size={24} className="text-brand-dark/40" />
         </div>
@@ -198,23 +198,23 @@ export default function AdminView() {
 
         {/* Stats Row */}
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8">
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 p-4 text-center">
+          <div className="card-delivery-style rounded-2xl p-4 text-center">
             <div className="text-2xl font-serif text-brand-dark">{stats.total}</div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mt-1">Total Clients</div>
           </div>
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 p-4 text-center">
+          <div className="card-delivery-style rounded-2xl p-4 text-center">
             <div className="text-2xl font-serif text-emerald-600">{stats.depositsCollected}</div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mt-1">Deposits</div>
           </div>
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 p-4 text-center">
+          <div className="card-delivery-style rounded-2xl p-4 text-center">
             <div className="text-2xl font-serif text-amber-600">{stats.awaitingClarity}</div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mt-1">Awaiting Clarity Session</div>
           </div>
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 p-4 text-center">
+          <div className="card-delivery-style rounded-2xl p-4 text-center">
             <div className="text-2xl font-serif text-green-600">{stats.delivered}</div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mt-1">Delivered</div>
           </div>
-          <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 p-4 text-center col-span-2 md:col-span-1">
+          <div className="card-delivery-style rounded-2xl p-4 text-center col-span-2 md:col-span-1">
             <div className="text-2xl font-serif text-brand-dark">{formatCents(stats.totalRevenue)}</div>
             <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mt-1">Revenue</div>
           </div>
@@ -291,7 +291,7 @@ export default function AdminView() {
                 <button
                   key={client.id}
                   onClick={() => setSelectedClientId(client.id)}
-                  className="w-full text-left bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 p-5 hover:shadow-md hover:bg-white/80 transition-all animate-[fadeInUp_0.4s_ease-out_both]"
+                  className="w-full text-left card-delivery-style rounded-2xl p-5 hover:shadow-md transition-all animate-[fadeInUp_0.4s_ease-out_both]"
                   style={{ animationDelay: `${idx * 0.03}s` }}
                 >
                   <div className="flex items-center justify-between">

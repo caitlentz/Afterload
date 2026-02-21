@@ -100,6 +100,15 @@ body {
   scrollbar-width: none;
 }
 
+/* Shared card surface used by Delivery, Dashboard, and Admin views */
+.card-delivery-style {
+  background: rgba(236, 239, 235, 0.28);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 2px 8px -3px rgba(36, 14, 56, 0.3);
+  backdrop-filter: blur(12px) saturate(130%);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+}
+
 /* Background orb drift animations (replaces framer-motion scroll-linked transforms) */
 @keyframes orb1 {
   0%, 100% { transform: translate(-10%, -10%) rotate(0deg); }

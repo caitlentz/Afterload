@@ -231,7 +231,7 @@ export default function AdminClientProfile({
         </div>
 
         {/* ─── Business Information Card ─── */}
-        <div className="bg-gradient-to-br from-brand-dark/[0.03] to-brand-dark/[0.01] rounded-xl p-5 border border-brand-dark/5 animate-[fadeInUp_0.4s_ease-out_0.05s_both]">
+        <div className="card-delivery-style rounded-xl p-5 animate-[fadeInUp_0.4s_ease-out_0.05s_both]">
           <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-4 flex items-center gap-2">
             <Briefcase size={12} />
             Business Information
@@ -327,7 +327,7 @@ export default function AdminClientProfile({
 
         {/* ─── Preview Output ─── */}
         {previewResult && (
-          <div className="bg-white/50 backdrop-blur-md rounded-xl border border-white/60 p-5 space-y-4 animate-[fadeInUp_0.4s_ease-out_0.15s_both]">
+          <div className="card-delivery-style rounded-xl p-5 space-y-4 animate-[fadeInUp_0.4s_ease-out_0.15s_both]">
             <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 flex items-center gap-2">
               <Activity size={12} />
               Preview Diagnostic Output
@@ -448,7 +448,7 @@ export default function AdminClientProfile({
 
         {/* ─── Question Pack Editor ─── */}
         {packLoaded && (effectiveInitialAnswers || questionPack) && (
-          <div className="bg-white/50 backdrop-blur-md rounded-xl border border-white/60 p-5 animate-[fadeInUp_0.4s_ease-out_0.2s_both]">
+          <div className="card-delivery-style rounded-xl p-5 animate-[fadeInUp_0.4s_ease-out_0.2s_both]">
             {usedInitialFallback && (
               <div className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
                 <div className="text-[10px] font-bold uppercase tracking-wider">Fallback Intake Mode</div>
@@ -663,7 +663,7 @@ export default function AdminClientProfile({
 
         {/* ─── Report Editor (deep intake only) ─── */}
         {hasClaritySession && fullReport && (
-          <div className="bg-white/50 backdrop-blur-md rounded-xl border border-white/60 p-5 animate-[fadeInUp_0.4s_ease-out_0.4s_both]">
+          <div className="card-delivery-style rounded-xl p-5 animate-[fadeInUp_0.4s_ease-out_0.4s_both]">
             <Suspense fallback={<div className="animate-pulse h-32 bg-brand-dark/5 rounded-xl" />}>
               <ReportEditor
                 clientId={client.id}
@@ -719,7 +719,7 @@ export default function AdminClientProfile({
               <ChevronDown size={12} className="group-open:rotate-180 transition-transform" />
               Raw Answers ({Object.keys(answers).length} fields)
             </summary>
-            <div className="mt-3 space-y-2 bg-white/50 backdrop-blur-md rounded-xl border border-white/60 p-5">
+            <div className="mt-3 space-y-2 card-delivery-style rounded-xl p-5">
               {Object.entries(answers)
                 .filter(([_, v]) => v !== null && v !== undefined && v !== '')
                 .map(([key, value]) => (

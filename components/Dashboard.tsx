@@ -305,7 +305,7 @@ export default function Dashboard({
           {/* Settings Panel */}
           <div className={`grid transition-all duration-300 ease-out ${showSettings ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 mt-0'}`}>
             <div className="overflow-hidden">
-                <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-6 space-y-4">
+                <div className="card-delivery-style rounded-2xl p-6 space-y-4">
                   <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-2">
                     Settings
                   </div>
@@ -415,7 +415,7 @@ export default function Dashboard({
           {/* STAGE: Fresh — Inline intake questions */}
           {stage === 'fresh' && (
             <Suspense fallback={
-              <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] border border-white/80 animate-pulse">
+              <div className="w-full card-delivery-style p-8 md:p-10 rounded-[2.5rem] animate-pulse">
                 <div className="h-8 w-48 bg-brand-dark/5 rounded mb-4" />
                 <div className="h-4 w-64 bg-brand-dark/5 rounded" />
               </div>
@@ -432,7 +432,7 @@ export default function Dashboard({
             <div className="space-y-4">
               <button
                 onClick={onViewReport}
-                className="w-full text-left bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm hover:shadow-lg transition-all group"
+                className="w-full text-left card-delivery-style p-8 md:p-10 rounded-[2rem] hover:shadow-lg transition-all group"
               >
                 <div className="flex items-start justify-between">
                   <div>
@@ -475,7 +475,7 @@ export default function Dashboard({
                   </div>
                 </button>
               ) : clarityRequestPending ? (
-                <div className="w-full bg-white/70 backdrop-blur-xl p-6 md:p-8 rounded-[1.5rem] border border-white/80">
+                <div className="w-full card-delivery-style p-6 md:p-8 rounded-[1.5rem]">
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
                       <Sparkles size={16} />
@@ -534,7 +534,7 @@ export default function Dashboard({
               {intakeData && (
                 <button
                   onClick={onViewReport}
-                  className="w-full text-left bg-white/50 backdrop-blur-xl p-5 rounded-2xl border border-white/60 hover:bg-white/70 transition-all group"
+                  className="w-full text-left card-delivery-style p-5 rounded-2xl transition-all group"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -580,7 +580,7 @@ export default function Dashboard({
 
               {/* Waiting card — shows when report isn't released yet */}
               {!reportReleased && (
-                <div className="w-full bg-white/70 backdrop-blur-xl p-8 md:p-10 rounded-[2rem] border border-white/80 shadow-sm">
+                <div className="w-full card-delivery-style p-8 md:p-10 rounded-[2rem]">
                   <div className="flex items-center gap-3 mb-6">
                     <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center">
                       <CheckCircle size={20} />
@@ -601,7 +601,7 @@ export default function Dashboard({
               {intakeData && (
                 <button
                   onClick={onViewReport}
-                  className="w-full text-left bg-white/50 backdrop-blur-xl p-5 rounded-2xl border border-white/60 hover:bg-white/70 transition-all group"
+                  className="w-full text-left card-delivery-style p-5 rounded-2xl transition-all group"
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -626,7 +626,7 @@ export default function Dashboard({
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {(intakeData.business_model || intakeData.business_type) && (
-                <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-white/60">
+                <div className="card-delivery-style p-4 rounded-2xl">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">
                     Model
                   </div>
@@ -636,7 +636,7 @@ export default function Dashboard({
                 </div>
               )}
               {intakeData.team_size && (
-                <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-white/60">
+                <div className="card-delivery-style p-4 rounded-2xl">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">
                     Team
                   </div>
@@ -646,7 +646,7 @@ export default function Dashboard({
                 </div>
               )}
               {intakeData.hourly_rate && (
-                <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-white/60">
+                <div className="card-delivery-style p-4 rounded-2xl">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">
                     Rate
                   </div>
@@ -656,7 +656,7 @@ export default function Dashboard({
                 </div>
               )}
               {(intakeData.current_revenue_estimate || intakeData.revenue) && (
-                <div className="bg-white/50 backdrop-blur-md p-4 rounded-2xl border border-white/60">
+                <div className="card-delivery-style p-4 rounded-2xl">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">
                     Revenue
                   </div>
@@ -674,17 +674,17 @@ export default function Dashboard({
             <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-brand-dark/30 mb-4">
               Operational Pattern
             </div>
-            <div className="bg-white/60 backdrop-blur-md rounded-2xl border border-white/70 p-5 space-y-3">
+            <div className="card-delivery-style rounded-2xl p-5 space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                <div className="bg-white/60 rounded-xl p-3 border border-white/70">
+                <div className="card-delivery-style rounded-xl p-3">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Pattern</div>
                   <div className="text-sm font-serif text-brand-dark">{previewEligibility.metadata.pattern}</div>
                 </div>
-                <div className="bg-white/60 rounded-xl p-3 border border-white/70">
+                <div className="card-delivery-style rounded-xl p-3">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Confidence</div>
                   <div className="text-sm font-serif text-brand-dark">{previewEligibility.metadata.confidence}</div>
                 </div>
-                <div className="bg-white/60 rounded-xl p-3 border border-white/70 col-span-2 md:col-span-1">
+                <div className="card-delivery-style rounded-xl p-3 col-span-2 md:col-span-1">
                   <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-1">Founder Dependency</div>
                   <div className="text-sm font-serif text-brand-dark">{previewEligibility.metadata.founderDependencyScore}</div>
                 </div>
@@ -746,7 +746,7 @@ export default function Dashboard({
               Preliminary Findings
             </div>
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-white/50 backdrop-blur-md p-5 rounded-2xl border border-white/60 text-center">
+              <div className="card-delivery-style p-5 rounded-2xl text-center">
                 <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">
                   Decision Load
                 </div>
@@ -762,7 +762,7 @@ export default function Dashboard({
                   {diagnosticResult.report.decisionLoad}
                 </div>
               </div>
-              <div className="bg-white/50 backdrop-blur-md p-5 rounded-2xl border border-white/60 text-center">
+              <div className="card-delivery-style p-5 rounded-2xl text-center">
                 <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">
                   Flow Friction
                 </div>
@@ -778,7 +778,7 @@ export default function Dashboard({
                   {diagnosticResult.report.flowFriction}
                 </div>
               </div>
-              <div className="bg-white/50 backdrop-blur-md p-5 rounded-2xl border border-white/60 text-center">
+              <div className="card-delivery-style p-5 rounded-2xl text-center">
                 <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-2">
                   Context Switching
                 </div>
@@ -803,7 +803,7 @@ export default function Dashboard({
           <div
             className="mb-10 animate-[fadeInUp_0.6s_ease-out_0.4s_both]"
           >
-            <div className="bg-white/40 backdrop-blur-md p-6 rounded-2xl border border-white/60">
+            <div className="card-delivery-style p-6 rounded-2xl">
               <div className="text-[9px] font-bold uppercase tracking-wider text-brand-dark/30 mb-3">
                 What You Told Us
               </div>
@@ -843,7 +843,7 @@ export default function Dashboard({
 
             <div className={`grid transition-all duration-300 ease-out ${showAnswers ? 'grid-rows-[1fr] opacity-100 mt-4' : 'grid-rows-[0fr] opacity-0 mt-0'}`}>
               <div className="overflow-hidden">
-                  <div className="bg-white/50 backdrop-blur-md rounded-2xl border border-white/60 p-6">
+                  <div className="card-delivery-style rounded-2xl p-6">
                     <div className="space-y-4">
                       {Object.entries(intakeData)
                         .filter(([key]) => !SKIP_KEYS.includes(key) && ANSWER_LABELS[key])
