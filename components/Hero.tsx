@@ -51,6 +51,11 @@ export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: 
                 <div
                     className="relative font-serif tracking-tighter w-full py-12 md:py-20 flex flex-col items-center animate-[fadeInUp_1.2s_cubic-bezier(0.22,1,0.36,1)_0.2s_both]"
                 >
+                    {/* Logo mark */}
+                    <div className="flex justify-center mb-6">
+                      <img src="/logo.png" alt="Afterload" className="w-10 h-10 md:w-12 md:h-12" />
+                    </div>
+
                     {/* Pre-title Label */}
                     <div className="text-[10px] md:text-xs font-sans font-bold tracking-[0.3em] uppercase text-brand-mid mb-6 md:mb-8 text-center">
                         The End State Is
