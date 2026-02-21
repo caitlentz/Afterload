@@ -44,6 +44,13 @@ export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: 
                 <div
                     className="absolute w-40 h-40 md:w-56 md:h-56 rounded-full z-10 blur-[80px] bg-[radial-gradient(circle_at_center,theme(colors.brand.accent)_50%,theme(colors.sage.300)_100%)] animate-[gentlePulse_12s_ease-in-out_infinite]"
                 />
+                {[0, 1, 2].map((i) => (
+                  <div
+                    key={i}
+                    className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border border-brand-bg/80 bg-sage-300/50 animate-[rippleRing_24s_ease-out_infinite]"
+                    style={{ animationDelay: `${i * 6}s` }}
+                  />
+                ))}
             </div>
 
             {/* Headline */}
@@ -103,9 +110,10 @@ export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: 
 
             {/* The Paradox Card */}
             <div
-            className="w-full max-w-xl backdrop-blur-xl backdrop-saturate-150 border-[2px] border-transparent rounded-[2.5rem] p-6 pt-12 md:p-10 md:pt-14 shadow-[0_20px_40px_-15px_rgba(160,147,180,0.65),inset_0_0_0_1px_rgba(255,255,255,0.4)] text-center relative z-10"
-            style={{ background: 'linear-gradient(rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0.5)) padding-box, linear-gradient(45deg, #F5F2F6, #E4D8D0, #D3C4CF, #F5F2F6) border-box' }}
+            className="w-full max-w-xl rounded-[2.5rem] p-[2px] shadow-[0_20px_40px_-15px_rgba(160,147,180,0.65),inset_0_0_0_1px_rgba(255,255,255,0.4)] relative z-10 overflow-hidden"
             >
+            <div className="absolute inset-0 rounded-[2.5rem] bg-[conic-gradient(from_0deg,#F5F2F6,#E4D8D0,#D3C4CF,#F5F2F6)] animate-[spin_28s_linear_infinite]" />
+            <div className="relative backdrop-blur-xl backdrop-saturate-150 rounded-[calc(2.5rem-2px)] p-6 pt-12 md:p-10 md:pt-14 text-center bg-white/50">
 
 
             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 inline-block px-6 py-2 rounded-full bg-lavender-50/80 text-[10px] font-bold tracking-[0.2em] uppercase shadow-sm border border-brand-dark/5 whitespace-nowrap z-20 text-brand-primary">
@@ -128,6 +136,7 @@ export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: 
 
             </p>
             </div>
+            </div>
 
             {/* CTA Button */}
             <div className="mt-12 z-10">
@@ -135,6 +144,9 @@ export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: 
                 onClick={handleScrollToIntake}
                 className="group relative px-10 py-5 bg-gradient-to-br from-brand-rich to-brand-deep rounded-full text-white shadow-[0_20px_40px_-15px_rgba(62,28,85,0.4)] hover:shadow-[0_25px_50px_-12px_rgba(62,28,85,0.6)] hover:scale-[1.02] active:scale-[0.96] transition-all duration-300 overflow-hidden ring-1 ring-white/10"
             >
+                <div className="absolute inset-0 overflow-hidden rounded-full pointer-events-none">
+                  <div className="absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12 bg-gradient-to-r from-transparent via-white/35 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[ctaSheen_1s_ease-in-out]" />
+                </div>
                 <div className="relative flex items-center justify-center gap-3">
                   <span className="text-xs font-bold tracking-[0.2em] uppercase">Start Diagnostic</span>
                   <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform text-brand-soft" />
