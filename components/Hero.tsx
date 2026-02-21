@@ -110,13 +110,12 @@ export default function Hero({ onDiagnosticComplete, onLoginClick, userEmail }: 
 
             {/* The Paradox Card */}
             <div
-            className="w-full max-w-xl rounded-[2.5rem] p-[2px] shadow-[0_20px_40px_-15px_rgba(160,147,180,0.65),inset_0_0_0_1px_rgba(255,255,255,0.4)] relative z-10 overflow-hidden"
+            className="w-full max-w-xl rounded-[2.5rem] p-[2px] shadow-[0_20px_40px_-15px_rgba(160,147,180,0.65),inset_0_0_0_1px_rgba(255,255,255,0.4)] relative z-10 overflow-visible bg-[linear-gradient(45deg,#F5F2F6,#E4D8D0,#D3C4CF,#F5F2F6)]"
             >
-            <div className="absolute inset-0 rounded-[2.5rem] bg-[conic-gradient(from_0deg,#F5F2F6,#E4D8D0,#D3C4CF,#F5F2F6)] animate-[spin_28s_linear_infinite]" />
             <div className="relative backdrop-blur-xl backdrop-saturate-150 rounded-[calc(2.5rem-2px)] p-6 pt-12 md:p-10 md:pt-14 text-center bg-white/50">
 
 
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 inline-block px-6 py-2 rounded-full bg-lavender-50/80 text-[10px] font-bold tracking-[0.2em] uppercase shadow-sm border border-brand-dark/5 whitespace-nowrap z-20 text-brand-primary">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-[68%] inline-block px-6 py-2 rounded-full bg-lavender-50/90 text-[10px] font-bold tracking-[0.2em] uppercase shadow-sm border border-brand-dark/10 whitespace-nowrap z-20 text-brand-primary">
                 The Paradox
             </div>
 
