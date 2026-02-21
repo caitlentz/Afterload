@@ -82,6 +82,23 @@ function buildClarityRequestKey(email: string) {
   return `${CLARITY_REQUEST_KEY_PREFIX}${email.trim().toLowerCase()}`;
 }
 
+function readClarityRequestEmailsFromStorage(): string[] {
+  const emails: string[] = [];
+  try {
+    for (let i = 0; i < localStorage.length; i += 1) {
+      const key = localStorage.key(i);
+      if (!key) continue;
+      if (key.startsWith(CLARITY_REQUEST_KEY_PREFIX)) {
+        const email = key.slice(CLARITY_REQUEST_KEY_PREFIX.length).trim().toLowerCase();
+        if (email) emails.push(email);
+      }
+    }
+  } catch {
+    // Ignore storage access issues
+  }
+  return emails;
+}
+
 
 export default function App() {
   // 1. Initialize State
@@ -152,7 +169,7 @@ export default function App() {
   // Uses both sources so auth-email mismatch doesn't hide shipped packs.
   useEffect(() => {
     const intakeEmail = intakeData?.email;
-    const candidateEmails = [userEmail, intakeEmail]
+    const candidateEmails = [userEmail, intakeEmail, ...readClarityRequestEmailsFromStorage()]
       .filter((v): v is string => !!v)
       .map(v => v.trim().toLowerCase())
       .filter((v, i, arr) => arr.indexOf(v) === i);
@@ -162,7 +179,7 @@ export default function App() {
     let cancelled = false;
 
     const refreshQuestionPackStatus = async () => {
-      const { fetchQuestionPackStatus } = await import('./utils/database');
+      const { fetchQuestionPackStatus, fetchShippedQuestionPack } = await import('./utils/database');
       let best: 'none' | 'draft' | 'shipped' = 'none';
       for (const email of candidateEmails) {
         const status = await fetchQuestionPackStatus(email);
@@ -170,6 +187,13 @@ export default function App() {
           best = status;
         }
         if (best === 'shipped') break;
+
+        // Defensive fallback: if status RPC misses but shipped pack exists, treat as shipped.
+        const shippedPack = await fetchShippedQuestionPack(email);
+        if (shippedPack?.questions?.length) {
+          best = 'shipped';
+          break;
+        }
       }
       if (!cancelled) setQuestionPackStatus(best);
     };
