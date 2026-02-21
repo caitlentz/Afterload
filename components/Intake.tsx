@@ -4,12 +4,13 @@ import { CLARITY_SESSION_QUESTIONS, ClarityQuestion } from '../utils/claritySess
 
 // Types for initial intake
 type InitialQuestionType = 'single' | 'multi' | 'text' | 'scale' | 'form';
+type InitialOption = string | { value: string; label: string };
 interface InitialQuestion {
   id: string;
   type: InitialQuestionType;
   text: string;
   helperText?: string;
-  options?: string[];
+  options?: InitialOption[];
   maxSelect?: number;
   placeholder?: string;
   dependsOn?: {
@@ -28,39 +29,366 @@ interface IntakeProps {
 
 // --- UNIVERSAL INITIAL INTAKE QUESTIONS (v2) ---
 const UNIVERSAL_QUESTIONS: InitialQuestion[] = [
-  { id: 'business_model', type: 'single', text: "What best describes your business model?",
-    options: ['Standardized service', 'Creative service', 'Expert service', 'Advisory/coaching', 'Hybrid model'] },
-  { id: 'revenue_generation', type: 'single', text: "How is revenue primarily generated?",
-    options: ['Founder delivers majority of service', 'Team delivers, founder reviews', 'Team delivers independently', 'Mix of founder + team delivery'] },
-  { id: 'two_week_absence', type: 'single', text: "If you step away for 2 weeks, what happens?",
-    options: ['Revenue drops immediately', 'Work slows significantly', 'Team continues but escalates decisions', 'Business runs mostly normally'] },
-  { id: 'final_decisions', type: 'single', text: "Who makes final decisions on client work?",
-    options: ['Always me', 'Mostly me', 'Shared with senior team', 'Rarely me'] },
-  { id: 'project_stall', type: 'single', text: "Where do projects most often stall?",
-    options: ['Waiting on my approval', 'Waiting on team execution', 'Waiting on clients', 'Hiring/staffing gaps', 'Nowhere obvious'] },
-  { id: 'growth_limiter', type: 'single', text: "What limits your growth right now?",
-    options: ['Not enough qualified staff', 'Not enough time', 'Inconsistent demand', 'Pricing structure', 'Operational inefficiency'] },
-  { id: 'process_documentation', type: 'single', text: "How documented are your processes?",
-    options: ['Mostly in my head', 'Light documentation', 'Documented but not used', 'Fully documented and followed'] },
-  { id: 'roles_handled', type: 'single', text: "How many roles do you personally handle?",
-    options: ['1\u20132', '3\u20134', '5\u20136', '7+'] },
-  { id: 'client_relationship', type: 'single', text: "How are client relationships structured?",
-    options: ['Clients hire me specifically', 'Clients hire the firm but expect me involved', 'Clients are assigned to team members', 'No founder involvement needed'] },
-  { id: 'key_member_leaves', type: 'single', text: "What happens when a key team member leaves?",
-    options: ['Revenue drops', 'Delivery slows', 'Temporary disruption', 'Minimal impact'] },
-  { id: 'pricing_decisions', type: 'single', text: "How are pricing decisions made?",
-    options: ['Only by me', 'I approve final pricing', 'Senior team sets pricing', 'Fixed pricing structure'] },
-  { id: 'interruption_frequency', type: 'single', text: "How often are you interrupted for decisions?",
-    options: ['Constantly throughout the day', 'Multiple times daily', 'A few times per week', 'Rarely'] },
-  { id: 'hiring_situation', type: 'single', text: "What describes your hiring situation?",
-    options: ['Actively hiring, hard to find talent', 'Hiring occasionally', 'Fully staffed', 'Overstaffed'] },
-  { id: 'free_capacity', type: 'single', text: "What would free up the most capacity?",
-    options: ['Delegating approvals', 'Hiring more staff', 'Better systems', 'Raising prices', 'Reducing client load'] },
-  { id: 'current_state', type: 'single', text: "What best describes your current state?",
-    options: ['Growing but strained', 'Stable but capped', 'Chaotic and reactive', 'Profitable but founder-heavy', 'Unsure'] },
-  { id: 'contact', type: 'form', text: "Lets do this", helperText: "We'll generate your mini personalized diagnostic immediately" }
+  {
+    id: 'business_model',
+    type: 'single',
+    text: 'Which option is closest to your business model?',
+    helperText: 'Choose the closest fit. It does not need to be perfect.',
+    options: [
+      {
+        value: 'Standardized service',
+        label: 'Standardized service (same offer each time, like monthly bookkeeping)',
+      },
+      {
+        value: 'Creative service',
+        label: 'Creative service (custom creative work, like design or content)',
+      },
+      {
+        value: 'Expert service',
+        label: 'Expert service (specialized expert problem-solving, like legal or tax work)',
+      },
+      {
+        value: 'Advisory/coaching',
+        label: 'Advisory/coaching (paid guidance, consulting, or coaching)',
+      },
+      {
+        value: 'Hybrid model',
+        label: 'Hybrid model (a mix of two or more options above)',
+      },
+    ],
+  },
+  {
+    id: 'revenue_generation',
+    type: 'single',
+    text: 'Who does most of the client delivery work?',
+    helperText: 'Choose based on a typical month.',
+    options: [
+      {
+        value: 'Founder delivers majority of service',
+        label: 'Founder delivers majority of service (I still do most delivery work)',
+      },
+      {
+        value: 'Team delivers, founder reviews',
+        label: 'Team delivers, founder reviews (team does the work, I still review/approve)',
+      },
+      {
+        value: 'Team delivers independently',
+        label: 'Team delivers independently (team runs end-to-end without me)',
+      },
+      {
+        value: 'Mix of founder + team delivery',
+        label: 'Mix of founder + team delivery (some delivery is mine, some is team-owned)',
+      },
+    ],
+  },
+  {
+    id: 'two_week_absence',
+    type: 'single',
+    text: 'If you were fully offline for 2 weeks, what would happen?',
+    helperText: 'Offline = no calls, email, Slack, text, or approvals.',
+    options: [
+      {
+        value: 'Revenue drops immediately',
+        label: 'Revenue drops immediately (sales or fulfillment slows right away)',
+      },
+      {
+        value: 'Work slows significantly',
+        label: 'Work slows significantly (things continue, but much slower)',
+      },
+      {
+        value: 'Team continues but escalates decisions',
+        label: 'Team continues but escalates decisions (bigger choices wait for me)',
+      },
+      {
+        value: 'Business runs mostly normally',
+        label: 'Business runs mostly normally (team and systems hold steady)',
+      },
+    ],
+  },
+  {
+    id: 'final_decisions',
+    type: 'single',
+    text: 'Who usually makes the final call on client work?',
+    helperText: 'Think scope changes, exceptions, quality calls, and deadlines.',
+    options: [
+      { value: 'Always me', label: 'Always me (almost every final decision comes to me)' },
+      { value: 'Mostly me', label: 'Mostly me (team decides some things, I decide most)' },
+      {
+        value: 'Shared with senior team',
+        label: 'Shared with senior team (decision authority is shared with leaders)',
+      },
+      { value: 'Rarely me', label: 'Rarely me (team can make most final decisions without me)' },
+    ],
+  },
+  {
+    id: 'project_stall',
+    type: 'single',
+    text: 'Where does work most often get stuck?',
+    helperText: 'Pick the blocker you see most often.',
+    options: [
+      {
+        value: 'Waiting on my approval',
+        label: 'Waiting on my approval (work waits for my sign-off)',
+      },
+      {
+        value: 'Waiting on team execution',
+        label: 'Waiting on team execution (capacity, consistency, or ownership issues)',
+      },
+      {
+        value: 'Waiting on clients',
+        label: 'Waiting on clients (feedback, files, payment, or scheduling delays)',
+      },
+      {
+        value: 'Hiring/staffing gaps',
+        label: 'Hiring/staffing gaps (not enough people or missing key skills)',
+      },
+      { value: 'Nowhere obvious', label: 'Nowhere obvious (no clear repeat bottleneck)' },
+    ],
+  },
+  {
+    id: 'growth_limiter',
+    type: 'single',
+    text: 'What is the biggest thing limiting growth right now?',
+    helperText: 'Choose the one that would make the biggest difference if fixed first.',
+    options: [
+      {
+        value: 'Not enough qualified staff',
+        label: 'Not enough qualified staff (hiring/training is the main block)',
+      },
+      {
+        value: 'Not enough time',
+        label: 'Not enough time (my calendar and attention are maxed out)',
+      },
+      {
+        value: 'Inconsistent demand',
+        label: 'Inconsistent demand (pipeline and lead flow are uneven)',
+      },
+      {
+        value: 'Pricing structure',
+        label: 'Pricing structure (rates, packages, or margins limit growth)',
+      },
+      {
+        value: 'Operational inefficiency',
+        label: 'Operational inefficiency (handoffs, tools, process, or rework slow us down)',
+      },
+    ],
+  },
+  {
+    id: 'process_documentation',
+    type: 'single',
+    text: 'How documented are your core processes right now?',
+    helperText: 'Think SOPs, checklists, templates, and decision rules.',
+    options: [
+      {
+        value: 'Mostly in my head',
+        label: 'Mostly in my head (team still needs me to explain steps)',
+      },
+      {
+        value: 'Light documentation',
+        label: 'Light documentation (some docs exist, but they are incomplete)',
+      },
+      {
+        value: 'Documented but not used',
+        label: 'Documented but not used (docs exist, but day-to-day work ignores them)',
+      },
+      {
+        value: 'Fully documented and followed',
+        label: 'Fully documented and followed (team regularly uses the docs)',
+      },
+    ],
+  },
+  {
+    id: 'roles_handled',
+    type: 'single',
+    text: 'How many different roles are you personally covering each week?',
+    helperText: 'Count real context-switching roles, not job titles.',
+    options: [
+      { value: '1–2', label: '1-2 roles (for example, leadership + sales)' },
+      { value: '3–4', label: '3-4 roles (for example, leadership, sales, delivery, hiring)' },
+      { value: '5–6', label: '5-6 roles (you switch across many functions each week)' },
+      { value: '7+', label: '7+ roles (you are the fallback person for almost everything)' },
+    ],
+  },
+  {
+    id: 'client_relationship',
+    type: 'single',
+    text: 'How do clients relate to your business today?',
+    helperText: 'Choose the one that feels most true for your typical client.',
+    options: [
+      {
+        value: 'Clients hire me specifically',
+        label: 'Clients hire me specifically (my name is the main reason they buy)',
+      },
+      {
+        value: 'Clients hire the firm but expect me involved',
+        label: 'Clients hire the firm but expect me involved (they still want me involved)',
+      },
+      {
+        value: 'Clients are assigned to team members',
+        label: 'Clients are assigned to team members (team owns delivery relationships)',
+      },
+      {
+        value: 'No founder involvement needed',
+        label: 'No founder involvement needed (client work runs without me)',
+      },
+    ],
+  },
+  {
+    id: 'key_member_leaves',
+    type: 'single',
+    text: 'If a key team member left unexpectedly, what would happen first?',
+    helperText: 'Pick the most realistic immediate impact.',
+    options: [
+      {
+        value: 'Revenue drops',
+        label: 'Revenue drops (we lose capacity or clients quickly)',
+      },
+      {
+        value: 'Delivery slows',
+        label: 'Delivery slows (deadlines slip and output quality drops)',
+      },
+      {
+        value: 'Temporary disruption',
+        label: 'Temporary disruption (short-term disruption, then recovery)',
+      },
+      {
+        value: 'Minimal impact',
+        label: 'Minimal impact (backup coverage and systems absorb it)',
+      },
+    ],
+  },
+  {
+    id: 'pricing_decisions',
+    type: 'single',
+    text: 'How are final pricing decisions made?',
+    helperText: 'Think proposals, exceptions, discounts, and package changes.',
+    options: [
+      { value: 'Only by me', label: 'Only by me (all pricing authority sits with me)' },
+      {
+        value: 'I approve final pricing',
+        label: 'I approve final pricing (team drafts, I still sign off)',
+      },
+      {
+        value: 'Senior team sets pricing',
+        label: 'Senior team sets pricing (leaders own pricing within clear guardrails)',
+      },
+      {
+        value: 'Fixed pricing structure',
+        label: 'Fixed pricing structure (set menu/rules reduce approval needs)',
+      },
+    ],
+  },
+  {
+    id: 'interruption_frequency',
+    type: 'single',
+    text: 'How often are you interrupted to make decisions?',
+    helperText: 'Include Slack pings, calls, texts, and quick asks.',
+    options: [
+      {
+        value: 'Constantly throughout the day',
+        label: 'Constantly throughout the day (focus blocks are hard to protect)',
+      },
+      {
+        value: 'Multiple times daily',
+        label: 'Multiple times daily (interruptions are frequent)',
+      },
+      {
+        value: 'A few times per week',
+        label: 'A few times per week (interruptions happen, but not nonstop)',
+      },
+      {
+        value: 'Rarely',
+        label: 'Rarely (team usually resolves decisions without me)',
+      },
+    ],
+  },
+  {
+    id: 'hiring_situation',
+    type: 'single',
+    text: 'What best describes your hiring/staffing reality?',
+    helperText: 'Answer for your current quarter, not your long-term plan.',
+    options: [
+      {
+        value: 'Actively hiring, hard to find talent',
+        label: 'Actively hiring, hard to find talent (open roles are hard to fill)',
+      },
+      {
+        value: 'Hiring occasionally',
+        label: 'Hiring occasionally (some openings, not urgent across the board)',
+      },
+      {
+        value: 'Fully staffed',
+        label: 'Fully staffed (current team can handle current demand)',
+      },
+      {
+        value: 'Overstaffed',
+        label: 'Overstaffed (capacity currently exceeds demand)',
+      },
+    ],
+  },
+  {
+    id: 'free_capacity',
+    type: 'single',
+    text: 'If you fixed one thing to free your time fastest, what would it be?',
+    helperText: 'Pick the highest-leverage move for the next 2-3 months.',
+    options: [
+      {
+        value: 'Delegating approvals',
+        label: 'Delegating approvals (fewer decisions routed to me)',
+      },
+      {
+        value: 'Hiring more staff',
+        label: 'Hiring more staff (more hands and better role coverage)',
+      },
+      {
+        value: 'Better systems',
+        label: 'Better systems (automation, SOPs, templates, and clearer handoffs)',
+      },
+      {
+        value: 'Raising prices',
+        label: 'Raising prices (less volume pressure for the same or better margin)',
+      },
+      {
+        value: 'Reducing client load',
+        label: 'Reducing client load (fewer accounts to stabilize quality and pace)',
+      },
+    ],
+  },
+  {
+    id: 'current_state',
+    type: 'single',
+    text: 'Which statement best matches your business right now?',
+    helperText: 'Choose the one that feels true most weeks.',
+    options: [
+      {
+        value: 'Growing but strained',
+        label: 'Growing but strained (demand is up, but team/systems are under pressure)',
+      },
+      {
+        value: 'Stable but capped',
+        label: 'Stable but capped (predictable, but hard to break through)',
+      },
+      {
+        value: 'Chaotic and reactive',
+        label: 'Chaotic and reactive (frequent firefighting and last-minute pivots)',
+      },
+      {
+        value: 'Profitable but founder-heavy',
+        label: 'Profitable but founder-heavy (financially okay, but still depends on me)',
+      },
+      {
+        value: 'Unsure',
+        label: 'Unsure (hard to assess clearly right now)',
+      },
+    ],
+  },
+  {
+    id: 'contact',
+    type: 'form',
+    text: 'Last step: where should we send your diagnostic?',
+    helperText: "We'll generate your mini personalized diagnostic right after this.",
+  },
 ];
-
 // Determine clarity session track from intake data (supports both v1 and v2)
 function determineClarityTrack(intakeData: Record<string, any> | null): 'A' | 'B' | 'C' {
     const answer = intakeData?.business_model || intakeData?.business_type;
@@ -185,6 +513,11 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
   const activeInitialQuestions = UNIVERSAL_QUESTIONS;
   const questions = mode === 'initial' ? activeInitialQuestions : clarityQuestions;
   const currentQ = questions[step];
+
+  const getOptionValue = (option: InitialOption): string =>
+    typeof option === 'string' ? option : option.value;
+  const getOptionLabel = (option: InitialOption): string =>
+    typeof option === 'string' ? option : option.label;
   
   const totalSteps = questions.length;
   const progress = totalSteps > 0 ? ((step + 1) / totalSteps) * 100 : 0;
@@ -304,8 +637,40 @@ export default function Intake({ onComplete, mode = 'initial', initialDataMissin
   const renderQuestionContent = () => {
       if (!currentQ) return null;
       switch (currentQ.type) {
-          case 'single': return currentQ.options?.map((option, idx) => <button key={idx} onClick={() => handleSingleSelect(option)} className={`w-full p-4 text-left rounded-xl border transition-all duration-200 group flex items-center justify-between ${answers[currentQ.id] === option ? 'bg-brand-deep text-white border-brand-deep shadow-lg scale-[1.01]' : 'bg-white border-brand-dark/5 hover:border-brand-rich/30 text-brand-dark/80 hover:bg-brand-light/30'}`}><span className="font-medium text-sm md:text-base">{option}</span>{answers[currentQ.id] === option && <Check size={18} />}</button>);
-          case 'multi': return currentQ.options?.map((option, idx) => { const isSelected = (answers[currentQ.id] as string[] || []).includes(option); return (<button key={idx} onClick={() => handleMultiSelect(option)} className={`w-full p-4 text-left rounded-xl border transition-all duration-200 group flex items-center justify-between ${isSelected ? 'bg-brand-rich/5 border-brand-rich text-brand-deep shadow-sm' : 'bg-white border-brand-dark/5 hover:border-brand-rich/30 text-brand-dark/80 hover:bg-brand-light/30'}`}><span className="font-medium text-sm md:text-base">{option}</span><div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-brand-rich border-brand-rich text-white' : 'border-brand-dark/20 bg-white'}`}>{isSelected && <Check size={12} />}</div></button>); });
+          case 'single':
+              return currentQ.options?.map((option, idx) => {
+                const optionValue = getOptionValue(option);
+                const optionLabel = getOptionLabel(option);
+                const isSelected = answers[currentQ.id] === optionValue;
+                return (
+                  <button
+                    key={`${optionValue}-${idx}`}
+                    onClick={() => handleSingleSelect(optionValue)}
+                    className={`w-full p-4 text-left rounded-xl border transition-all duration-200 group flex items-center justify-between gap-3 ${isSelected ? 'bg-brand-deep text-white border-brand-deep shadow-lg scale-[1.01]' : 'bg-white border-brand-dark/5 hover:border-brand-rich/30 text-brand-dark/80 hover:bg-brand-light/30'}`}
+                  >
+                    <span className="font-medium text-sm md:text-base leading-snug">{optionLabel}</span>
+                    {isSelected && <Check size={18} />}
+                  </button>
+                );
+              });
+          case 'multi':
+              return currentQ.options?.map((option, idx) => {
+                const optionValue = getOptionValue(option);
+                const optionLabel = getOptionLabel(option);
+                const isSelected = (answers[currentQ.id] as string[] || []).includes(optionValue);
+                return (
+                  <button
+                    key={`${optionValue}-${idx}`}
+                    onClick={() => handleMultiSelect(optionValue)}
+                    className={`w-full p-4 text-left rounded-xl border transition-all duration-200 group flex items-center justify-between gap-3 ${isSelected ? 'bg-brand-rich/5 border-brand-rich text-brand-deep shadow-sm' : 'bg-white border-brand-dark/5 hover:border-brand-rich/30 text-brand-dark/80 hover:bg-brand-light/30'}`}
+                  >
+                    <span className="font-medium text-sm md:text-base leading-snug">{optionLabel}</span>
+                    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors ${isSelected ? 'bg-brand-rich border-brand-rich text-white' : 'border-brand-dark/20 bg-white'}`}>
+                      {isSelected && <Check size={12} />}
+                    </div>
+                  </button>
+                );
+              });
           case 'text': return <textarea value={answers[currentQ.id] || ''} onChange={(e) => handleTextChange(e)} placeholder={currentQ.placeholder} className="w-full h-40 p-5 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich focus:ring-1 focus:ring-brand-rich outline-none resize-none font-lora text-lg placeholder:text-brand-dark/30" />;
           case 'dollar': return <input type="text" value={answers[currentQ.id] || ''} onChange={(e) => handleTextChange(e)} placeholder={currentQ.placeholder} className="w-full p-4 rounded-xl bg-white border border-brand-dark/10 focus:border-brand-rich outline-none font-serif text-lg text-center" />;
           case 'form':
