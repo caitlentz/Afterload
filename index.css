@@ -85,6 +85,11 @@
 
 body {
   overscroll-behavior-y: none;
+  background:
+    radial-gradient(70% 80% at 0% 0%, rgba(188, 174, 195, 0.26), transparent 60%),
+    radial-gradient(60% 70% at 100% 20%, rgba(205, 199, 212, 0.3), transparent 62%),
+    linear-gradient(180deg, #fdfcf7 0%, #f7f4f6 45%, #f5f1ed 100%);
+  background-attachment: fixed;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
@@ -104,11 +109,19 @@ body {
   0%, 100% { transform: translate(10%, 10%) rotate(0deg); }
   50% { transform: translate(-5%, -20%) rotate(-90deg); }
 }
+@keyframes orb3 {
+  0%, 100% { transform: translate(0%, 0%) rotate(0deg); }
+  50% { transform: translate(10%, -12%) rotate(40deg); }
+}
 
 /* Hero entry animations */
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(40px); }
@@ -133,6 +146,10 @@ body {
 @keyframes fadeInLeft {
   from { opacity: 0; transform: translateX(-30px); }
   to { opacity: 1; transform: translateX(0); }
+}
+@keyframes sheenSlide {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(160%); }
 }
 @media print {
   @page { margin: 0.5in; }

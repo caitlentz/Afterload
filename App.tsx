@@ -1,5 +1,6 @@
 import React, { useState, useEffect, lazy, Suspense, Component, type ErrorInfo, type ReactNode } from 'react';
 import Hero from './components/Hero';
+import Background from './components/Background';
 import { User } from 'lucide-react';
 
 // Type-only imports — erased at compile time, zero bundle cost
@@ -55,7 +56,6 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const AdminView = lazy(() => import('./components/AdminView'));
 const FullReport = lazy(() => import('./components/FullReport'));
 const SuccessScreen = lazy(() => import('./components/SuccessScreen'));
-const Background = lazy(() => import('./components/Background'));
 
 enum View {
   HOME = 'HOME',
@@ -656,20 +656,19 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen w-full overflow-x-hidden text-brand-dark font-sans selection:bg-brand-accent selection:text-brand-dark">
-      <Suspense fallback={<div className="fixed inset-0 bg-brand-bg" />}>
-        <Background />
-      </Suspense>
+      <Background />
 
       {/* Header - Centered Pill Style */}
       <header className="fixed top-0 left-0 right-0 z-50 flex justify-center py-8 pointer-events-none">
         <div
-          className="pointer-events-auto bg-white px-1 py-1 rounded-full border border-black/5 shadow-sm flex items-center gap-1"
+          className="pointer-events-auto relative overflow-hidden bg-white/70 backdrop-blur-xl px-1 py-1 rounded-full border border-white/80 shadow-[0_12px_32px_-18px_rgba(62,28,85,0.45)] flex items-center gap-1 animate-[fadeInDown_0.7s_ease-out_both]"
         >
+            <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_0%,rgba(255,255,255,0.55)_48%,transparent_100%)] animate-[sheenSlide_8s_linear_infinite]" />
             <button
               onClick={() => navigate(View.HOME)}
-              className={`px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
+              className={`relative z-10 px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
                 activeView === View.HOME
-                  ? 'bg-white shadow-sm text-brand-dark'
+                  ? 'bg-white/90 shadow-sm text-brand-dark'
                   : 'text-brand-dark/50 hover:text-brand-dark'
               }`}
             >
@@ -688,7 +687,7 @@ export default function App() {
                 ) : (
                     <button
                         onClick={() => navigate(View.DASHBOARD)}
-                        className="px-5 py-2 rounded-full flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase text-brand-dark/60 hover:bg-brand-dark/5 transition-all"
+                        className="relative z-10 px-5 py-2 rounded-full flex items-center gap-2 text-[10px] font-bold tracking-widest uppercase text-brand-dark/60 hover:bg-brand-dark/5 transition-all"
                     >
                         <User size={12} />
                         Dashboard
@@ -698,12 +697,12 @@ export default function App() {
                 activeView === View.HOME ? (
                     <button
                       onClick={() => navigate(View.LOGIN)}
-                      className="px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase text-brand-dark/60 hover:text-brand-dark/60 hover:bg-brand-dark/5 transition-all"
+                      className="relative z-10 px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase text-brand-dark/60 hover:text-brand-dark/60 hover:bg-brand-dark/5 transition-all"
                     >
                       Login
                     </button>
                 ) : (
-                   <div className="px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase bg-brand-dark text-white shadow-sm flex items-center gap-2">
+                   <div className="relative z-10 px-5 py-2 rounded-full text-xs font-semibold tracking-widest uppercase bg-brand-dark text-white shadow-sm flex items-center gap-2">
                      {activeView === View.DIAGNOSTIC_PREVIEW && "Preview"}
                      {activeView === View.PAYMENT && "Secure Checkout"}
                      {activeView === View.CLARITY_SESSION && "Clarity Session"}
