@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AlertCircle, MessageSquare, PauseCircle, Scaling, BatteryMedium } from 'lucide-react';
 
 const symptomsList = [
@@ -55,12 +55,52 @@ interface SymptomCardProps {
 }
 
 const SymptomCard: React.FC<SymptomCardProps> = ({ item, index }) => {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setIsVisible(entry.isIntersecting),
+      { threshold: 0.25, rootMargin: '0px 0px -10% 0px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const rect = target.getBoundingClientRect();
+    target.style.setProperty('--mx', `${e.clientX - rect.left}px`);
+    target.style.setProperty('--my', `${e.clientY - rect.top}px`);
+  };
+
   return (
     <div
+      ref={cardRef}
       className="mb-4 md:mb-6 last:mb-0 relative animate-[fadeInUp_0.6s_ease-out_both]"
-      style={{ animationDelay: `${index * 0.08}s` }}
+      style={{
+        animationDelay: `${index * 0.08}s`,
+        opacity: isVisible ? 1 : 0.35,
+        transform: `scale(${isVisible ? 1 : 0.94})`,
+        transition: 'opacity 0.45s ease, transform 0.45s ease',
+      }}
     >
-      <div className="group relative p-6 md:p-8 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-sm transition-all duration-500 hover:shadow-md hover:bg-white/50 overflow-hidden">
+      <div
+        className="group relative p-6 md:p-8 rounded-2xl bg-white/40 backdrop-blur-xl border border-white/60 shadow-sm transition-all duration-500 hover:shadow-xl hover:bg-white/60 overflow-hidden"
+        onMouseMove={handleMouseMove}
+      >
+        <div
+          className="pointer-events-none absolute -inset-px rounded-2xl opacity-0 transition duration-300 group-hover:opacity-100"
+          style={{
+            background:
+              'radial-gradient(500px circle at var(--mx,50%) var(--my,50%), rgba(255, 255, 255, 0.8), transparent 40%)',
+          }}
+        />
+        <div className={`absolute -top-10 -right-10 w-40 h-40 rounded-full blur-[60px] opacity-0 group-hover:opacity-20 transition-opacity duration-500 ${item.glowColor}`} />
 
         <div className="relative z-10 flex items-start gap-2 md:gap-2">
             <div className="shrink-0 mt-1">
@@ -113,7 +153,14 @@ const Symptoms: React.FC<SymptomsProps> = ({ onStartIntake }) => {
                 viewBox="0 0 100 15"
                 preserveAspectRatio="none"
                >
-                 <path d="M0 5 Q 50 15 100 5" stroke="currentColor" strokeWidth="2" fill="none" />
+                 <path
+                   d="M0 5 Q 50 15 100 5"
+                   stroke="currentColor"
+                   strokeWidth="2"
+                   fill="none"
+                   className="animate-[pathDraw_1s_ease-out_0.5s_both]"
+                   style={{ strokeDasharray: 140, strokeDashoffset: 140 }}
+                 />
                </svg>
             </span>
           </h2>
